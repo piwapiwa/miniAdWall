@@ -1,10 +1,9 @@
 // client/src/pages/Landing.tsx
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Typography, Space, Statistic, Grid } from '@arco-design/web-react'
+import { Button, Typography, Statistic, Grid } from '@arco-design/web-react'
 import { IconRight, IconApps, IconFire, IconThunderbolt } from '@arco-design/web-react/icon'
 import { useAdStore } from '../store/adStore'
-import { Ad } from '../types'
 
 const { Title } = Typography
 const { Row, Col } = Grid

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import axios from 'axios'
 import { Ad, AdState } from '../types'
 
-export const useAdStore = create<AdState>((set, get) => ({
+export const useAdStore = create<AdState>((set) => ({
   ads: [],
   loading: false,
   error: null,

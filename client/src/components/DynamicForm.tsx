@@ -4,7 +4,7 @@ import { IconUpload } from '@arco-design/web-react/icon'
 import axios from 'axios'
 import { FormSchema, FormField } from '../types'
 
-const { Title, Text } = Typography
+const { Title} = Typography
 const { Option } = Select
 
 interface DynamicFormProps {
@@ -13,13 +13,7 @@ interface DynamicFormProps {
   initialData?: Record<string, any>;
 }
 
-// 定义上传响应的类型
-interface UploadResponse {
-  url: string;
-  [key: string]: any;
-}
-
-// ⬇️⬇️⬇️ 修复点在这里：显式定义类型为 Record<string, any> ⬇️⬇️⬇️
+// 显式定义类型为 Record<string, any>
 const DEFAULT_DATA: Record<string, any> = {};
 
 const DynamicForm: React.FC<DynamicFormProps> = ({ 
