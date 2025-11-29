@@ -59,7 +59,7 @@ export const getAllAds = async (req: Request, res: Response) => {
     })
 
     // 遍历结果，将 JSON 字符串字段解析回数组
-    const parsedAds = ads.map(ad => ({
+    const parsedAds = ads.map((ad: any) => ({
       ...ad,
       imageUrls: safeParse(ad.imageUrls),
       videoUrls: safeParse(ad.videoUrls)

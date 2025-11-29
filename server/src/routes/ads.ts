@@ -8,7 +8,7 @@ import {
   incrementClicks
 } from '../controllers/adController'
 
-const router = Router()
+const router: Router = Router()
 
 // 获取所有广告
 router.get('/', getAllAds)

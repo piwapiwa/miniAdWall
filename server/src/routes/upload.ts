@@ -3,7 +3,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 
-const router = Router()
+const router: Router = Router()
 
 // 确保上传目录存在
 const uploadDir = path.join(__dirname, '../../uploads')
