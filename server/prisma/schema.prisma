@@ -1,0 +1,25 @@
+// server/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Ad {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  // 修改：将 optional 的单字符串改为 String (存储 JSON 字符串)
+  // 注意：为了兼容旧数据，我们在代码层面处理，这里先保持 String?，但在逻辑上我们把它当 JSON 数组存
+  imageUrls   String   @default("[]") // 存储如 '["url1", "url2"]'
+  videoUrls   String   @default("[]") // 存储如 '["url1", "url2"]'
+  targetUrl   String
+  price       Decimal
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

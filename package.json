@@ -1,0 +1,21 @@
+{
+  "name": "mini-ad-wall",
+  "version": "1.0.0",
+  "description": "广告管理平台全栈项目",
+  "main": "index.js",
+  "scripts": {
+    "dev:client": "pnpm --filter client dev",
+    "dev:server": "pnpm --filter server dev",
+    "dev": "pnpm concurrently \"pnpm --filter server dev\" \"pnpm --filter client dev\"",
+    "build:client": "pnpm --filter client build",
+    "build:server": "pnpm --filter server build",
+    "build": "pnpm run build:client && pnpm run build:server"
+  },
+  "keywords": ["advertisement", "react", "nodejs", "typescript"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "pnpm": "^8.15.0"
+  }
+}
