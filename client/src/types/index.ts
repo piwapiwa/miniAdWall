@@ -2,6 +2,7 @@
 export interface Ad {
   id: number;
   title: string;
+  author: string; 
   description: string;
   imageUrls: string[];
   videoUrls: string[];

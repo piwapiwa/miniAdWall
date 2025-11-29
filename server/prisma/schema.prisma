@@ -5,18 +5,17 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "sqlite" // 或 postgresql，取决于你现在的配置
   url      = env("DATABASE_URL")
 }
 
 model Ad {
   id          Int      @id @default(autoincrement())
   title       String
+  author      String   @default("匿名用户") // 新增字段：发布人
   description String
-  // 修改：将 optional 的单字符串改为 String (存储 JSON 字符串)
-  // 注意：为了兼容旧数据，我们在代码层面处理，这里先保持 String?，但在逻辑上我们把它当 JSON 数组存
-  imageUrls   String   @default("[]") // 存储如 '["url1", "url2"]'
-  videoUrls   String   @default("[]") // 存储如 '["url1", "url2"]'
+  imageUrls   String   @default("[]")
+  videoUrls   String   @default("[]")
   targetUrl   String
   price       Decimal
   clicks      Int      @default(0)

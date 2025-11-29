@@ -1,36 +1,20 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Layout, Button, Modal } from '@arco-design/web-react'
-import { IconPlus } from '@arco-design/web-react/icon'
-import { useState } from 'react'
-import DynamicForm from '../components/DynamicForm'
-import useAdStore from '../store/adStore'
+import { Outlet, Link, useNavigate } from 'react-router-dom'
+import { Layout, Button } from '@arco-design/web-react'
+import { IconHome } from '@arco-design/web-react/icon'
 
 const { Header, Content, Footer } = Layout
 
 const MainLayout = () => {
-  const location = useLocation()
-  const [visible, setVisible] = useState(false)
-  const { createAd, fetchAds } = useAdStore()
-
-  const handleCreateSubmit = async (values: any) => {
-    try {
-      await createAd({ ...values, price: Number(values.price) })
-      setVisible(false)
-      if (location.pathname === '/app') fetchAds()
-    } catch (error) {
-      console.error(error)
-    }
-  }
+  const navigate = useNavigate()
 
   return (
-    // Layout 设为透明
     <Layout style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
       
-      {/* Header 设为半透明毛玻璃效果，提升高级感 */}
+      {/* 顶部 Header */}
       <Header style={{ 
         padding: '0 20px', 
-        backgroundColor: 'rgba(255, 255, 255, 0.6)', // 半透明白
-        backdropFilter: 'blur(10px)', // 毛玻璃模糊
+        backgroundColor: 'rgba(255, 255, 255, 0.6)', 
+        backdropFilter: 'blur(10px)', 
         borderBottom: '1px solid rgba(229, 230, 235, 0.5)', 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -52,12 +36,12 @@ const MainLayout = () => {
           </Link>
         </div>
         
-        <Button type="primary" icon={<IconPlus />} onClick={() => setVisible(true)}>
-          新增广告
+        {/* 这里改成“回到首页” */}
+        <Button icon={<IconHome />} onClick={() => navigate('/')}>
+          回到首页
         </Button>
       </Header>
       
-      {/* Content 设为透明，padding 稍微加大 */}
       <Content style={{ padding: '32px 24px', flex: 1, backgroundColor: 'transparent' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <Outlet />
@@ -67,20 +51,6 @@ const MainLayout = () => {
       <Footer style={{ textAlign: 'center', padding: '16px', color: '#4e5969' }}>
         Mini Ad Wall ©2024 Created by ByteDance Camp
       </Footer>
-
-      <Modal
-        title={null}
-        visible={visible}
-        onCancel={() => setVisible(false)}
-        footer={null}
-        style={{ width: 600 }}
-        unmountOnExit
-      >
-        <DynamicForm 
-          schemaId="ad-form" 
-          onSubmit={handleCreateSubmit} 
-        />
-      </Modal>
     </Layout>
   )
 }

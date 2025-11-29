@@ -14,28 +14,37 @@ const formSchemas: Record<string, any> = {
         placeholder: '请输入广告标题',
         maxLength: 100
       },
+      // 1. 新增：发布人
+      {
+        name: 'author',
+        label: '发布人',
+        type: 'text',
+        required: true,
+        placeholder: '请输入发布人姓名',
+        maxLength: 50
+      },
       {
         name: 'description',
-        label: '广告描述',
+        label: '内容文案', // 2. 修改：Label 改为 内容文案
         type: 'textarea',
         required: true,
-        placeholder: '请输入广告描述',
+        placeholder: '请输入内容文案',
         maxLength: 500
       },
       {
-        name: 'imageUrls', // 改名
+        name: 'imageUrls',
         label: '广告图片 (支持多张)',
         type: 'file',
-        required: true, // 必填
-        multiple: true, // 支持多选
+        required: true,
+        multiple: true,
         placeholder: '请上传广告图片'
       },
       {
-        name: 'videoUrls', // 改名
+        name: 'videoUrls',
         label: '广告视频 (支持多个)',
         type: 'file',
-        required: false,
-        multiple: true, // 新增属性
+        required: true, // 3. 修改：视频改为必填
+        multiple: true,
         placeholder: '请上传广告视频'
       },
       {
@@ -56,6 +65,8 @@ const formSchemas: Record<string, any> = {
       }
     ]
   },
+  
+  // ⬇️⬇️⬇️ 重点修改这里 ⬇️⬇️⬇️
   'update-ad-form': {
     id: 'update-ad-form',
     title: '更新广告表单',
@@ -68,16 +79,25 @@ const formSchemas: Record<string, any> = {
         placeholder: '请输入广告标题',
         maxLength: 100
       },
+      // 补上：发布人
+      {
+        name: 'author',
+        label: '发布人',
+        type: 'text',
+        required: true,
+        placeholder: '请输入发布人姓名',
+        maxLength: 50
+      },
       {
         name: 'description',
-        label: '广告描述',
+        label: '内容文案', // 改名
         type: 'textarea',
         required: true,
-        placeholder: '请输入广告描述',
+        placeholder: '请输入内容文案',
         maxLength: 500
       },
-     {
-        name: 'imageUrls', // 改名
+      {
+        name: 'imageUrls',
         label: '广告图片 (支持多张)',
         type: 'file',
         required: true,
@@ -85,10 +105,10 @@ const formSchemas: Record<string, any> = {
         placeholder: '请上传广告图片'
       },
       {
-        name: 'videoUrls', // 改名
+        name: 'videoUrls',
         label: '广告视频 (支持多个)',
         type: 'file',
-        required: false,
+        required: true, // 改为必填
         multiple: true,
         placeholder: '请上传广告视频'
       },
