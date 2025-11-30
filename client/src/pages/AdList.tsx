@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Card, Button, Space, Typography, Empty, Spin, Dropdown, Menu, Modal, Message, Divider } from '@arco-design/web-react'
+import { Card, Button, Space, Typography,  Spin, Dropdown, Menu, Modal, Message, Divider } from '@arco-design/web-react'
 import { IconMore, IconDelete, IconCopy, IconEdit, IconPlus, IconEye } from '@arco-design/web-react/icon'
 import { useAdStore } from '../store/adStore'
 import { Ad } from '../types'
