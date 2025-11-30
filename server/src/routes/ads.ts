@@ -5,27 +5,31 @@ import {
   getAdById,
   updateAd,
   deleteAd,
-  incrementClicks
+  incrementClicks,
+  getAdStats // 引入新控制器
 } from '../controllers/adController'
 
 const router: Router = Router()
 
-// 获取所有广告
+// 1. 统计接口 (必须放在 /:id 之前)
+router.get('/stats', getAdStats)
+
+// 2. 列表接口
 router.get('/', getAllAds)
 
-// 获取单个广告
+// 3. 详情接口
 router.get('/:id', getAdById)
 
-// 创建广告
+// 4. 创建接口
 router.post('/', createAd)
 
-// 更新广告
+// 5. 更新接口
 router.put('/:id', updateAd)
 
-// 删除广告
+// 6. 删除接口
 router.delete('/:id', deleteAd)
 
-// 增加点击量
+// 7. 点击计数接口
 router.post('/:id/clicks', incrementClicks)
 
 export default router

@@ -2,17 +2,29 @@ import { create } from 'zustand'
 import axios from 'axios'
 import { Ad, AdState } from '../types'
 
-export const useAdStore = create<AdState>((set) => ({
+export const useAdStore = create<AdState>((set, get) => ({
+  // --- State ---
   ads: [],
+  stats: null, // 新增：仪表盘统计数据
   loading: false,
   error: null,
   selectedAd: null,
+  filter: { search: '', status: 'All' }, // 新增：筛选状态
 
-  // 获取列表：这个保留 error 设置，因为如果列表都拉取失败，显示全屏报错是合理的
-  fetchAds: async () => {
+  // --- Actions ---
+
+  // 设置筛选条件
+  setFilter: (filter) => set({ filter: { ...get().filter, ...filter } }),
+
+  // 获取广告列表 (支持搜索、筛选)
+  fetchAds: async (params) => {
     set({ loading: true, error: null })
     try {
-      const response = await axios.get('/api/ads')
+      // 合并 store 中的 filter 和传入的 params
+      const currentFilter = get().filter
+      const queryParams = { ...currentFilter, ...params }
+      
+      const response = await axios.get('/api/ads', { params: queryParams })
       set({ ads: response.data, loading: false })
     } catch (error) {
       set({ 
@@ -22,7 +34,17 @@ export const useAdStore = create<AdState>((set) => ({
     }
   },
 
-  // 获取详情：也保留
+  // 获取仪表盘统计数据
+  fetchStats: async () => {
+    try {
+      const response = await axios.get('/api/ads/stats')
+      set({ stats: response.data })
+    } catch (error) {
+      console.error('获取统计数据失败:', error)
+    }
+  },
+
+  // 获取单个广告详情
   fetchAdById: async (id: number) => {
     set({ loading: true, error: null })
     try {
@@ -39,34 +61,45 @@ export const useAdStore = create<AdState>((set) => ({
     }
   },
 
-  // 创建广告：移除 set({ error })，错误直接抛出给组件处理
+  // 创建广告
   createAd: async (adData: any) => {
-    set({ loading: true }) // 只设置 loading
+    set({ loading: true })
     try {
       const response = await axios.post('/api/ads', adData)
       const newAd = response.data
+      
+      // 更新本地列表
       set((state) => ({ 
         ads: [newAd, ...state.ads], 
         loading: false 
       }))
+      
+      // 刷新统计数据
+      get().fetchStats()
+      
       return newAd
     } catch (error) {
-      set({ loading: false }) // 失败只取消 loading，不设置全局 error
-      throw error // 抛出错误供组件捕获
+      set({ loading: false })
+      throw error
     }
   },
 
-  // 更新广告：移除 set({ error })
+  // 更新广告 (支持更新内容和状态)
   updateAd: async (id: number, adData: Partial<Ad>) => {
     set({ loading: true })
     try {
       const response = await axios.put(`/api/ads/${id}`, adData)
       const updatedAd = response.data
+      
       set((state) => ({
         ads: state.ads.map(ad => ad.id === id ? updatedAd : ad),
         selectedAd: state.selectedAd?.id === id ? updatedAd : state.selectedAd,
         loading: false
       }))
+
+      // 刷新统计数据 (因为状态或价格可能改变)
+      get().fetchStats()
+
       return updatedAd
     } catch (error) {
       set({ loading: false })
@@ -74,7 +107,7 @@ export const useAdStore = create<AdState>((set) => ({
     }
   },
 
-  // 删除广告：移除 set({ error })
+  // 删除广告
   deleteAd: async (id: number) => {
     set({ loading: true })
     try {
@@ -84,12 +117,17 @@ export const useAdStore = create<AdState>((set) => ({
         selectedAd: state.selectedAd?.id === id ? null : state.selectedAd,
         loading: false
       }))
+      
+      // 刷新统计数据
+      get().fetchStats()
+
     } catch (error) {
       set({ loading: false })
       throw error
     }
   },
 
+  // 增加点击量
   incrementClicks: async (id: number) => {
     try {
       await axios.post(`/api/ads/${id}/clicks`)
@@ -101,6 +139,10 @@ export const useAdStore = create<AdState>((set) => ({
           ? { ...state.selectedAd, clicks: state.selectedAd.clicks + 1 }
           : state.selectedAd
       }))
+      
+      // 刷新统计数据
+      get().fetchStats()
+
     } catch (error) {
       console.error('增加点击量失败:', error)
     }

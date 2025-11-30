@@ -12,13 +12,14 @@ datasource db {
 model Ad {
   id          Int      @id @default(autoincrement())
   title       String
-  author      String   @default("匿名用户") // 新增字段：发布人
+  author      String   @default("匿名用户")
   description String
   imageUrls   String   @default("[]")
   videoUrls   String   @default("[]")
   targetUrl   String
   price       Decimal
   clicks      Int      @default(0)
+  status      String   @default("Active") // Active, Paused, Draft
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

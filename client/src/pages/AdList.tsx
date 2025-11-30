@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { Card, Button, Space, Typography,  Spin, Dropdown, Menu, Modal, Message, Divider } from '@arco-design/web-react'
-import { IconMore, IconDelete, IconCopy, IconEdit, IconPlus, IconEye } from '@arco-design/web-react/icon'
+import { 
+  Card, Button, Space, Typography, Spin, Dropdown, Menu, 
+  Modal, Message, Divider, Input, Select, Tag 
+} from '@arco-design/web-react'
+import { 
+  IconMore, IconDelete, IconCopy, IconEdit, IconPlus, IconEye, 
+  IconToTop, IconSearch, IconPlayArrow, IconPause 
+} from '@arco-design/web-react/icon'
 import { useAdStore } from '../store/adStore'
 import { Ad } from '../types'
 import DynamicForm from '../components/DynamicForm'
@@ -8,7 +14,11 @@ import DynamicForm from '../components/DynamicForm'
 const { Title, Text } = Typography
 
 const AdList = () => {
-  const { ads, loading, fetchAds, deleteAd, createAd, updateAd, incrementClicks } = useAdStore()
+  const { 
+    ads, loading, fetchAds, deleteAd, createAd, updateAd, incrementClicks,
+    filter, setFilter 
+  } = useAdStore()
+  
   const [sortBy, setSortBy] = useState<'price' | 'clicks' | 'bid'>('bid')
   
   // 表单模态框状态
@@ -22,11 +32,40 @@ const AdList = () => {
   const [targetRedirectUrl, setTargetRedirectUrl] = useState<string>('')
   const [playingAdId, setPlayingAdId] = useState<number | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  
+  // 控制是否显示最终跳转按钮
+  const [videoPlayFinished, setVideoPlayFinished] = useState(false);
 
   // 初始加载
   useEffect(() => {
     fetchAds()
   }, [fetchAds])
+
+  // 处理搜索
+  const handleSearch = (val: string) => {
+    setFilter({ ...filter, search: val })
+    fetchAds({ search: val })
+  }
+
+  // 处理状态筛选
+  const handleStatusChange = (val: string) => {
+    setFilter({ ...filter, status: val })
+    fetchAds({ status: val })
+  }
+
+  // 切换广告状态 (暂停/开启)
+  const toggleStatus = async (ad: Ad, e: any) => {
+    e.stopPropagation()
+    const newStatus = ad.status === 'Active' ? 'Paused' : 'Active'
+    try {
+      await updateAd(ad.id, { status: newStatus })
+      Message.success(`广告已${newStatus === 'Active' ? '开启' : '暂停'}`)
+      // 刷新列表以更新状态
+      fetchAds()
+    } catch (err) {
+      Message.error('状态更新失败')
+    }
+  }
 
   // 新的竞价排名公式：价格 + (价格 * 点击量 * 0.42)
   const calculateBidScore = (ad: Ad): number => {
@@ -35,7 +74,7 @@ const AdList = () => {
     return price + (price * clicks * 0.42)
   }
 
-  // 排序逻辑
+  // 本地排序逻辑 (针对已筛选的数据)
   const sortedAds = [...ads].sort((a, b) => {
     const priceA = Number(a.price) || 0
     const priceB = Number(b.price) || 0
@@ -45,52 +84,45 @@ const AdList = () => {
     } else if (sortBy === 'clicks') {
       return b.clicks - a.clicks
     } else {
-      // 默认按竞价分倒序
       return calculateBidScore(b) - calculateBidScore(a)
     }
   })
 
-  // 处理广告卡片点击：随机播放视频 -> 播放结束 -> 跳转
+  // 处理广告卡片点击：打开视频弹窗
   const handleCardClick = (ad: Ad) => {
-    // 1. 检查是否有视频
     if (!ad.videoUrls || ad.videoUrls.length === 0) {
       Message.warning('该广告暂无视频，直接跳转');
-      handleRedirect(ad.id, ad.targetUrl);
+      window.open(ad.targetUrl, '_blank');
+      incrementClicks(ad.id);
       return;
     }
 
-    // 2. 随机选择一个视频
     const randomIndex = Math.floor(Math.random() * ad.videoUrls.length);
     const videoUrl = ad.videoUrls[randomIndex];
 
-    // 3. 设置状态并打开模态框
+    setVideoPlayFinished(false); 
     setPlayingVideoUrl(videoUrl);
     setTargetRedirectUrl(ad.targetUrl);
     setPlayingAdId(ad.id);
     setVideoModalVisible(true);
   }
 
-  // 视频播放结束时的回调
   const handleVideoEnded = () => {
+    if (videoRef.current) {
+        videoRef.current.pause();
+    }
+    setVideoPlayFinished(true);
+    Message.info('视频播放完毕，请点击按钮跳转');
+  }
+  
+  const handleFinalRedirect = async () => {
     if (playingAdId && targetRedirectUrl) {
-      // 关闭弹窗并跳转
-      setVideoModalVisible(false);
-      handleRedirect(playingAdId, targetRedirectUrl);
+        await incrementClicks(playingAdId); 
+        window.open(targetRedirectUrl, '_blank');
+        setVideoModalVisible(false);
     }
   }
 
-  // 执行跳转和计数逻辑
-  const handleRedirect = async (id: number, url: string) => {
-    try {
-      await incrementClicks(id);
-      window.open(url, '_blank');
-      Message.success('广告展示完成，正在跳转...');
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  // 删除功能
   const handleDelete = (id: number) => {
     Modal.confirm({
       title: '确认删除',
@@ -106,23 +138,19 @@ const AdList = () => {
     })
   }
 
-  // 打开复制模态框
   const handleCopy = (ad: Ad) => {
-    // 复制时去掉 id 等字段
-    const { id, createdAt, updatedAt, clicks, ...rest } = ad
+    const { id, createdAt, updatedAt, clicks, status, ...rest } = ad
     setCurrentAd(rest as Ad) 
     setModalType('copy')
     setFormVisible(true)
   }
 
-  // 打开编辑模态框
   const handleEdit = (ad: Ad) => {
     setCurrentAd(ad)
     setModalType('edit')
     setFormVisible(true)
   }
 
-  // 表单提交
   const handleFormSubmit = async (values: any) => {
     try {
       const payload = {
@@ -144,12 +172,9 @@ const AdList = () => {
       console.error(error)
       const errorMsg = error.response?.data?.error || '操作失败';
       Message.error(errorMsg); 
-      // 抛出错误以阻止 DynamicForm 清空表单
-      throw error;
     }
   }
 
-  // 渲染操作菜单
   const renderDropdown = (ad: Ad) => (
     <Dropdown droplist={
       <Menu>
@@ -167,27 +192,35 @@ const AdList = () => {
         </Menu.Item>
       </Menu>
     }>
-      <Button 
-        type="text" 
-        icon={<IconMore />} 
-        onClick={(e) => e.stopPropagation()} 
-        style={{ color: '#86909c' }}
-      />
+      <Button type="text" icon={<IconMore />} onClick={(e) => e.stopPropagation()} style={{ color: '#86909c' }} />
     </Dropdown>
   )
 
-  // 渲染列表页的媒体预览（仅封面图）
   const renderMediaPreview = (ad: Ad) => {
     const coverImage = ad.imageUrls && ad.imageUrls.length > 0 ? ad.imageUrls[0] : null;
     
     if (coverImage) {
       return (
-        <div style={{ width: '100%', height: '180px', overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: '180px', overflow: 'hidden', position: 'relative' }}>
           <img 
             src={coverImage} 
             alt={ad.title} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'cover', 
+              transition: 'transform 0.3s',
+              filter: ad.status === 'Paused' ? 'grayscale(100%)' : 'none' // 暂停时变灰
+            }}
           />
+          {ad.status === 'Paused' && (
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <IconPause style={{ fontSize: 32, color: '#fff' }} />
+            </div>
+          )}
         </div>
       )
     } else {
@@ -217,69 +250,81 @@ const AdList = () => {
 
   return (
     <div>
+      <style>
+        {`
+          .video-player-modal .arco-modal-body {
+              padding: 0 !important;
+              background-color: #000;
+          }
+        `}
+      </style>
+
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        {/* 顶部工具栏 - 重新设计 */}
+        {/* 顶部工具栏 */}
         <div style={{ 
           display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          background: 'rgba(255, 255, 255, 0.8)', // 微透明背景
+          flexDirection: 'column',
+          gap: '16px',
+          background: 'rgba(255, 255, 255, 0.8)', 
           backdropFilter: 'blur(8px)',
-          padding: '16px 24px',
-          borderRadius: '12px', // 更圆润的边角
-          border: '1px solid rgba(255,255,255,0.5)', // 玻璃质感边框
-          boxShadow: '0 4px 10px rgba(0,0,0,0.02)' // 极淡的阴影
+          padding: '20px 24px',
+          borderRadius: '12px', 
+          border: '1px solid rgba(255,255,255,0.5)', 
+          boxShadow: '0 4px 10px rgba(0,0,0,0.02)'
         }}>
-          {/* 左侧：标题 */}
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{ width: 4, height: 16, background: '#165DFF', borderRadius: 2, marginRight: 8 }}></div>
-            <Title heading={5} style={{ margin: 0 }}>广告列表</Title>
-          </div>
-          
-          {/* 右侧：功能区 */}
-          <Space split={<Divider type='vertical' style={{ margin: '0 12px' }} />}>
-            {/* 排序组 */}
-            <Space>
-              <Text type="secondary" style={{ fontSize: 13 }}>排序：</Text>
-              <Button.Group>
-                <Button 
-                  size="small"
-                  type={sortBy === 'bid' ? 'primary' : 'secondary'}
-                  onClick={() => setSortBy('bid')}
-                >
-                  竞价
-                </Button>
-                <Button 
-                  size="small"
-                  type={sortBy === 'price' ? 'primary' : 'secondary'}
-                  onClick={() => setSortBy('price')}
-                >
-                  价格
-                </Button>
-                <Button 
-                  size="small"
-                  type={sortBy === 'clicks' ? 'primary' : 'secondary'}
-                  onClick={() => setSortBy('clicks')}
-                >
-                  热度
-                </Button>
-              </Button.Group>
-            </Space>
-
-            {/* 核心操作：新增 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ width: 4, height: 16, background: '#165DFF', borderRadius: 2, marginRight: 8 }}></div>
+              <Title heading={5} style={{ margin: 0 }}>广告管理</Title>
+            </div>
+            
             <Button 
               type="primary" 
               icon={<IconPlus />} 
               onClick={() => {
-                setModalType('copy'); 
                 setCurrentAd(null);
+                setModalType('copy'); 
                 setFormVisible(true);
               }}
-              style={{ padding: '0 20px', fontWeight: 500 }}
             >
               新增广告
             </Button>
-          </Space>
+          </div>
+          
+          <Divider style={{ margin: 0 }} />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            {/* 筛选区域 */}
+            <Space>
+              <Input.Search 
+                placeholder="搜索标题、描述或发布人" 
+                style={{ width: 300 }} 
+                onSearch={handleSearch}
+                allowClear
+                prefix={<IconSearch />}
+              />
+              <Select 
+                placeholder="状态筛选" 
+                style={{ width: 160 }} 
+                defaultValue="All"
+                onChange={handleStatusChange}
+              >
+                <Select.Option value="All">全部状态</Select.Option>
+                <Select.Option value="Active">投放中 (Active)</Select.Option>
+                <Select.Option value="Paused">已暂停 (Paused)</Select.Option>
+              </Select>
+            </Space>
+
+            {/* 排序区域 */}
+            <Space>
+              <Text type="secondary" style={{ fontSize: 13 }}>排序：</Text>
+              <Button.Group>
+                <Button size="small" type={sortBy === 'bid' ? 'primary' : 'secondary'} onClick={() => setSortBy('bid')}>竞价</Button>
+                <Button size="small" type={sortBy === 'price' ? 'primary' : 'secondary'} onClick={() => setSortBy('price')}>价格</Button>
+                <Button size="small" type={sortBy === 'clicks' ? 'primary' : 'secondary'} onClick={() => setSortBy('clicks')}>热度</Button>
+              </Button.Group>
+            </Space>
+          </div>
         </div>
 
         {/* 广告列表网格 */}
@@ -297,16 +342,35 @@ const AdList = () => {
                 flexDirection: 'column',
                 borderRadius: '8px', 
                 border: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                opacity: ad.status === 'Paused' ? 0.8 : 1
               }}
               bodyStyle={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}
-              extra={renderDropdown(ad)}
+              // 底部操作栏：包含状态切换和更多操作
+              actions={[
+                <Button 
+                  key="status" 
+                  type={ad.status === 'Active' ? 'text' : 'secondary'} 
+                  status={ad.status === 'Active' ? 'default' : 'warning'}
+                  size="small" 
+                  onClick={(e) => toggleStatus(ad, e)}
+                >
+                  {ad.status === 'Active' ? <IconPause /> : <IconPlayArrow />}
+                  {ad.status === 'Active' ? ' 暂停' : ' 开启'}
+                </Button>,
+                renderDropdown(ad)
+              ]}
               title={
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                  <span style={{ fontWeight: 500 }}>{ad.title}</span>
-                  <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal', marginTop: 4 }}>
-                    发布人: {ad.author}
-                  </Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flex: 1, marginRight: 8 }}>
+                    <span style={{ fontWeight: 500, fontSize: 16 }}>{ad.title}</span>
+                    <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal', marginTop: 4 }}>
+                      发布人: {ad.author}
+                    </Text>
+                  </div>
+                  <Tag color={ad.status === 'Active' ? 'green' : 'gray'} size="small">
+                    {ad.status === 'Active' ? '投放中' : '暂停'}
+                  </Tag>
                 </div>
               }
             >
@@ -348,17 +412,44 @@ const AdList = () => {
         }}
         autoFocus={false}
         focusLock={true}
-        style={{ width: '800px', backgroundColor: '#000', padding: 0 }}
+        className="video-player-modal"
+        style={{ maxWidth: '95vw', padding: 0, backgroundColor: '#000', margin: '20px auto' }} 
       >
-        <div style={{ height: '450px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-24px' }}>
+        <div style={{ 
+          height: '70vh', 
+          maxHeight: '450px', 
+          width: '100%', 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          justifyContent: 'center', 
+        }}>
           <video
             ref={videoRef}
             src={playingVideoUrl}
             autoPlay
             controls
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
             onEnded={handleVideoEnded}
           />
+
+          {videoPlayFinished && (
+            <Button
+              type="primary"
+              size="large"
+              icon={<IconToTop />}
+              onClick={handleFinalRedirect}
+              style={{ 
+                  marginTop: 20, 
+                  padding: '0 30px', 
+                  backgroundColor: '#165DFF', 
+                  width: '90%', 
+                  maxWidth: '400px' 
+              }}
+            >
+              立即前往目标网站
+            </Button>
+          )}
         </div>
       </Modal>
 

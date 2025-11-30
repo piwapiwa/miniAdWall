@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 
 // 模拟表单配置数据（实际项目中可以存储在数据库中）
 const formSchemas: Record<string, any> = {
+  // 1. 用于新建和复制的表单配置
   'ad-form': {
     id: 'ad-form',
     title: '创建广告表单',
@@ -14,7 +15,6 @@ const formSchemas: Record<string, any> = {
         placeholder: '请输入广告标题',
         maxLength: 100
       },
-      // 1. 新增：发布人
       {
         name: 'author',
         label: '发布人',
@@ -25,7 +25,7 @@ const formSchemas: Record<string, any> = {
       },
       {
         name: 'description',
-        label: '内容文案', // 2. 修改：Label 改为 内容文案
+        label: '内容文案',
         type: 'textarea',
         required: true,
         placeholder: '请输入内容文案',
@@ -43,16 +43,17 @@ const formSchemas: Record<string, any> = {
         name: 'videoUrls',
         label: '广告视频 (支持多个)',
         type: 'file',
-        required: true, // 3. 修改：视频改为必填
+        required: true,
         multiple: true,
         placeholder: '请上传广告视频'
       },
+      // ⬇️⬇️⬇️ 修复点：这里也要改成 "落地页" ⬇️⬇️⬇️
       {
         name: 'targetUrl',
-        label: '目标链接',
+        label: '落地页', 
         type: 'text',
         required: true,
-        placeholder: '请输入广告点击后的目标链接',
+        placeholder: '请输入广告点击后的落地页链接',
         maxLength: 255
       },
       {
@@ -66,7 +67,7 @@ const formSchemas: Record<string, any> = {
     ]
   },
   
-  // ⬇️⬇️⬇️ 重点修改这里 ⬇️⬇️⬇️
+  // 2. 用于编辑的表单配置
   'update-ad-form': {
     id: 'update-ad-form',
     title: '更新广告表单',
@@ -76,24 +77,23 @@ const formSchemas: Record<string, any> = {
         label: '广告标题',
         type: 'text',
         required: true,
-        placeholder: '请输入广告标题',
+        placeholder: '请输入广告的名称',
         maxLength: 100
       },
-      // 补上：发布人
       {
         name: 'author',
         label: '发布人',
         type: 'text',
         required: true,
-        placeholder: '请输入发布人姓名',
+        placeholder: '请输入广告发布者信息',
         maxLength: 50
       },
       {
         name: 'description',
-        label: '内容文案', // 改名
+        label: '内容文案',
         type: 'textarea',
         required: true,
-        placeholder: '请输入内容文案',
+        placeholder: '请输入广告推广文案',
         maxLength: 500
       },
       {
@@ -108,16 +108,17 @@ const formSchemas: Record<string, any> = {
         name: 'videoUrls',
         label: '广告视频 (支持多个)',
         type: 'file',
-        required: true, // 改为必填
+        required: true,
         multiple: true,
         placeholder: '请上传广告视频'
       },
+      // ⬇️⬇️⬇️ 这里的 "落地页" 保持不变 ⬇️⬇️⬇️
       {
         name: 'targetUrl',
-        label: '目标链接',
+        label: '落地页',
         type: 'text',
         required: true,
-        placeholder: '请输入广告点击后的目标链接',
+        placeholder: '请输入广告点击后落地页的url地址',
         maxLength: 255
       },
       {

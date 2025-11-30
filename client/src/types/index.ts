@@ -11,6 +11,7 @@ export interface Ad {
   clicks: number;
   createdAt: Date;
   updatedAt: Date;
+  status: 'Active' | 'Paused'; // 更新状态类型
 }
 
 // 广告列表状态类型
@@ -19,13 +20,18 @@ export interface AdState {
   loading: boolean;
   error: string | null;
   selectedAd: Ad | null;
-  // Actions
-  fetchAds: () => Promise<void>;
+  stats: DashboardStats | null; // 新增 stats 状态
+  filter: { search: string; status: string }; // 新增筛选状态
+  setFilter: (filter: { search: string; status: string }) => void;
+  fetchStats: () => Promise<void>;
+  // 修改 fetchAds 支持参数
+  fetchAds: (params?: { search?: string; status?: string }) => Promise<void>;
   fetchAdById: (id: number) => Promise<Ad | null>;
   createAd: (ad: Omit<Ad, 'id' | 'createdAt' | 'updatedAt' | 'clicks'>) => Promise<Ad>;
   updateAd: (id: number, ad: Partial<Ad>) => Promise<Ad>;
   deleteAd: (id: number) => Promise<void>;
   incrementClicks: (id: number) => Promise<void>;
+  
 }
 
 // 动态表单字段类型
@@ -46,4 +52,12 @@ export interface FormSchema {
   id: string;
   title: string;
   fields: FormField[];
+}
+
+export interface DashboardStats {
+  total: number;
+  active: number;
+  totalClicks: number;
+  avgPrice: number;
+  trend: { title: string; clicks: number }[];
 }
