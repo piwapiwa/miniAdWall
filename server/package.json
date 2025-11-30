@@ -5,7 +5,7 @@
   "description": "广告管理平台后端服务",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "npx prisma generate && tsc",
     "dev": "nodemon --exec ts-node src/index.ts",
     "start": "node dist/index.js"
   },
