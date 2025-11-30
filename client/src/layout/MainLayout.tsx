@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Button, Typography, Trigger } from '@arco-design/web-react'
+import { Layout, Menu, Button, Typography} from '@arco-design/web-react'
 import { IconHome, IconDashboard, IconApps, IconMenuFold, IconMenuUnfold } from '@arco-design/web-react/icon'
 
 const { Header, Content, Footer, Sider } = Layout
