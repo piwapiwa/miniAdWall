@@ -5,21 +5,38 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite" // 或 postgresql，取决于你现在的配置
+  provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+// 新增：用户模型
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  // 角色，默认 user，管理员为 admin
+  role      String   @default("user") 
+  // 反向关系，一个用户可以有多个广告
+  ads       Ad[]
+  createdAt DateTime @default(now())
 }
 
 model Ad {
   id          Int      @id @default(autoincrement())
   title       String
-  author      String   @default("匿名用户")
+  author      String   @default("匿名用户") // 这个字段仅用于前端显示（显示真名还是匿名）
   description String
   imageUrls   String   @default("[]")
   videoUrls   String   @default("[]")
   targetUrl   String
   price       Decimal
   clicks      Int      @default(0)
-  status      String   @default("Active") // Active, Paused, Draft
+  status      String   @default("Active")
+  
+  // 关联到 User 表
+  userId      Int?     // 允许为空是为了兼容旧数据，新数据必填
+  user        User?    @relation(fields: [userId], references: [id])
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

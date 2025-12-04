@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client'
 import adsRouter from './routes/ads'
 import uploadRouter from './routes/upload'
 import formSchemaRouter from './routes/form-schema'
+import authRouter from './routes/auth'
 
 // 加载环境变量
 dotenv.config()
@@ -29,6 +30,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 app.use('/api/ads', adsRouter)
 app.use('/api/upload', uploadRouter)
 app.use('/api/form-schema', formSchemaRouter)
+app.use('/api/auth', authRouter) //
 
 // =========================================================================
 // 新增核心代码：托管前端静态资源

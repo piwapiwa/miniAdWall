@@ -1,9 +1,10 @@
-// client/src/pages/Landing.tsx
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Typography, Statistic, Grid } from '@arco-design/web-react'
+import { Button, Typography, Statistic, Grid, Space } from '@arco-design/web-react'
 import { IconRight, IconApps, IconFire, IconThunderbolt } from '@arco-design/web-react/icon'
 import { useAdStore } from '../store/adStore'
+import { useUserStore } from '../store/userStore'
+import AuthModal from '../components/AuthModal'
 
 const { Title } = Typography
 const { Row, Col } = Grid
@@ -12,6 +13,10 @@ const Landing = () => {
   const navigate = useNavigate()
   const { ads, fetchAds } = useAdStore()
   
+  // 用户及登录弹窗状态
+  const { isLoggedIn, username, logout } = useUserStore()
+  const [authVisible, setAuthVisible] = useState(false)
+
   // 简单的入场动画状态
   const [mounted, setMounted] = useState(false)
 
@@ -31,7 +36,6 @@ const Landing = () => {
       width: '100vw',
       height: '100vh',
       overflow: 'hidden',
-      // 动态渐变背景
       background: 'linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)',
       backgroundSize: '400% 400%',
       animation: 'gradientBG 15s ease infinite',
@@ -49,11 +53,6 @@ const Landing = () => {
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
           }
-          @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-            100% { transform: translateY(0px); }
-          }
           .glass-panel {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
@@ -63,6 +62,28 @@ const Landing = () => {
           }
         `}
       </style>
+
+      {/* 右上角登录入口 */}
+      <div style={{ position: 'absolute', top: 20, right: 30, zIndex: 10 }}>
+        {isLoggedIn() ? (
+          <Space>
+            <span style={{ color: '#fff', fontWeight: 500, textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+              欢迎, {username}
+            </span>
+            <Button type="text" style={{ color: 'rgba(255,255,255,0.8)' }} onClick={logout}>
+              登出
+            </Button>
+          </Space>
+        ) : (
+          <Button 
+            type="outline" 
+            style={{ color: '#fff', borderColor: '#fff' }} 
+            onClick={() => setAuthVisible(true)}
+          >
+            登录 / 注册
+          </Button>
+        )}
+      </div>
 
       {/* 主要内容区域 */}
       <div 
@@ -104,7 +125,6 @@ const Landing = () => {
             Intelligent Advertising Platform
           </div>
 
-          {/* 右下角的“进入”按钮 */}
           <div style={{ 
             position: 'absolute', 
             right: '10%', 
@@ -134,10 +154,8 @@ const Landing = () => {
           </div>
         </div>
 
-        {/* 分割线 */}
         <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.2)', margin: '40px 0' }} />
 
-        {/* 数据展示区域 */}
         <div style={{ width: '100%' }}>
           <Row gutter={40} justify="center">
             <Col span={8}>
@@ -176,7 +194,6 @@ const Landing = () => {
         </div>
       </div>
 
-      {/* 底部版权 - 绝对定位 */}
       <div style={{ 
         position: 'absolute', 
         bottom: '20px', 
@@ -185,6 +202,12 @@ const Landing = () => {
       }}>
         ©2024 ByteDance Camp - Mini Ad Wall Project
       </div>
+
+      <AuthModal 
+        visible={authVisible} 
+        onCancel={() => setAuthVisible(false)} 
+        onSuccess={() => setAuthVisible(false)} 
+      />
     </div>
   )
 }

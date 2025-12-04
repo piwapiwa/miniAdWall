@@ -1,8 +1,8 @@
 import { Request, Response } from 'express'
 
-// 模拟表单配置数据（实际项目中可以存储在数据库中）
+// 模拟表单配置数据
 const formSchemas: Record<string, any> = {
-  // 1. 用于新建和复制的表单配置
+  // 1. 新建/复制 表单
   'ad-form': {
     id: 'ad-form',
     title: '创建广告表单',
@@ -15,12 +15,14 @@ const formSchemas: Record<string, any> = {
         placeholder: '请输入广告标题',
         maxLength: 100
       },
+      // 🚀 修改：设置为不可填，由前端自动填充
       {
         name: 'author',
         label: '发布人',
         type: 'text',
         required: true,
-        placeholder: '请输入发布人姓名',
+        disabled: true, 
+        placeholder: '自动填充当前用户',
         maxLength: 50
       },
       {
@@ -47,7 +49,6 @@ const formSchemas: Record<string, any> = {
         multiple: true,
         placeholder: '请上传广告视频'
       },
-      // ⬇️⬇️⬇️ 修复点：这里也要改成 "落地页" ⬇️⬇️⬇️
       {
         name: 'targetUrl',
         label: '落地页', 
@@ -67,7 +68,7 @@ const formSchemas: Record<string, any> = {
     ]
   },
   
-  // 2. 用于编辑的表单配置
+  // 2. 编辑表单
   'update-ad-form': {
     id: 'update-ad-form',
     title: '更新广告表单',
@@ -80,12 +81,14 @@ const formSchemas: Record<string, any> = {
         placeholder: '请输入广告的名称',
         maxLength: 100
       },
+      // 编辑时也不可修改发布人
       {
         name: 'author',
         label: '发布人',
         type: 'text',
         required: true,
-        placeholder: '请输入广告发布者信息',
+        disabled: true,
+        placeholder: '自动填充',
         maxLength: 50
       },
       {
@@ -112,7 +115,6 @@ const formSchemas: Record<string, any> = {
         multiple: true,
         placeholder: '请上传广告视频'
       },
-      // ⬇️⬇️⬇️ 这里的 "落地页" 保持不变 ⬇️⬇️⬇️
       {
         name: 'targetUrl',
         label: '落地页',
@@ -133,30 +135,22 @@ const formSchemas: Record<string, any> = {
   }
 }
 
-// 获取所有表单配置
 export const getAllFormSchemas = (req: Request, res: Response) => {
   try {
     const schemas = Object.values(formSchemas)
     res.json(schemas)
   } catch (error) {
-    console.error('获取表单配置列表失败:', error)
     res.status(500).json({ error: '获取表单配置列表失败' })
   }
 }
 
-// 获取单个表单配置
 export const getFormSchema = (req: Request, res: Response) => {
   try {
     const { id } = req.params
     const schema = formSchemas[id]
-
-    if (!schema) {
-      return res.status(404).json({ error: '表单配置不存在' })
-    }
-
+    if (!schema) return res.status(404).json({ error: '表单配置不存在' })
     res.json(schema)
   } catch (error) {
-    console.error('获取表单配置失败:', error)
     res.status(500).json({ error: '获取表单配置失败' })
   }
 }

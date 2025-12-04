@@ -1,3 +1,12 @@
+// 仪表盘统计数据类型
+export interface DashboardStats {
+  total: number;
+  active: number;
+  totalClicks: number;
+  avgPrice: number;
+  trend: { title: string; clicks: number }[];
+}
+
 // 广告数据类型
 export interface Ad {
   id: number;
@@ -9,32 +18,36 @@ export interface Ad {
   targetUrl: string;
   price: number;
   clicks: number;
+  status: 'Active' | 'Paused' | 'Draft' | 'Rejected';
   createdAt: Date;
   updatedAt: Date;
-  status: 'Active' | 'Paused'; // 更新状态类型
+  userId?: number;
 }
 
-// 广告列表状态类型
+// 广告列表状态类型 (Store)
 export interface AdState {
   ads: Ad[];
+  stats: DashboardStats | null;
+  authors: { username: string; role: string }[];
   loading: boolean;
   error: string | null;
   selectedAd: Ad | null;
-  stats: DashboardStats | null; // 新增 stats 状态
-  filter: { search: string; status: string }; // 新增筛选状态
+  filter: { search: string; status: string }; 
+  
+  // Actions
   setFilter: (filter: { search: string; status: string }) => void;
-  fetchStats: () => Promise<void>;
-  // 修改 fetchAds 支持参数
-  fetchAds: (params?: { search?: string; status?: string }) => Promise<void>;
+  fetchAds: (params?: { search?: string; status?: string; mine?: string; targetUser?: string }) => Promise<void>;
+  fetchStats: (params?: { mine?: string }) => Promise<void>;
+  fetchAuthors: () => Promise<void>;
+  
   fetchAdById: (id: number) => Promise<Ad | null>;
-  createAd: (ad: Omit<Ad, 'id' | 'createdAt' | 'updatedAt' | 'clicks'>) => Promise<Ad>;
+  createAd: (ad: any) => Promise<Ad>;
   updateAd: (id: number, ad: Partial<Ad>) => Promise<Ad>;
   deleteAd: (id: number) => Promise<void>;
   incrementClicks: (id: number) => Promise<void>;
-  
 }
 
-// 动态表单字段类型
+// 表单字段类型
 export interface FormField {
   name: string;
   label: string;
@@ -45,19 +58,12 @@ export interface FormField {
   maxLength?: number;
   minLength?: number;
   multiple?: boolean;
+  // 🚀 新增：支持禁用状态
+  disabled?: boolean; 
 }
 
-// 动态表单模式类型
 export interface FormSchema {
   id: string;
   title: string;
   fields: FormField[];
-}
-
-export interface DashboardStats {
-  total: number;
-  active: number;
-  totalClicks: number;
-  avgPrice: number;
-  trend: { title: string; clicks: number }[];
 }
