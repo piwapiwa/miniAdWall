@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Button, Typography, Dropdown, Avatar, Space, Message, Tag } from '@arco-design/web-react'
+import { Layout, Menu, Button, Typography, Dropdown, Avatar, Message, Tag } from '@arco-design/web-react'
 import { IconHome, IconDashboard, IconApps, IconMenuFold, IconMenuUnfold, IconUser, IconSettings, IconExport } from '@arco-design/web-react/icon'
 import AuthModal from '../components/AuthModal'
 import { useUserStore } from '../store/userStore'

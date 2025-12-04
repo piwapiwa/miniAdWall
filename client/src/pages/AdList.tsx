@@ -6,7 +6,7 @@ import {
 } from '@arco-design/web-react'
 import { 
   IconMore, IconDelete, IconCopy, IconEdit, IconPlus, IconEye, 
-  IconToTop, IconPlayArrow, IconPause, IconUser, IconFilter
+  IconPause, IconUser, IconFilter
 } from '@arco-design/web-react/icon'
 import { useAdStore } from '../store/adStore'
 import { useUserStore } from '../store/userStore'
@@ -20,13 +20,21 @@ interface AdListProps {
   isManagePage?: boolean;
 }
 
+// 🚀 优化：字体变细，fontWeight 改为 400 (Regular)
+const lightButtonStyle = {
+  backgroundColor: '#E8F3FF', 
+  color: '#165DFF', 
+  border: 'none',
+  fontWeight: 400 // 变细
+}
+
 const AdList = ({ isManagePage = false }: AdListProps) => {
   const { 
     ads, loading, fetchAds, deleteAd, createAd, updateAd, incrementClicks,
     filter, setFilter, stats, fetchStats, authors, fetchAuthors
   } = useAdStore()
   
-  const { isLoggedIn, username, id: userId, role } = useUserStore()
+  const { isLoggedIn, username, role } = useUserStore()
   const [authVisible, setAuthVisible] = useState(false)
 
   const [sortBy, setSortBy] = useState<'price' | 'clicks' | 'bid'>('bid')
@@ -75,11 +83,11 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
     }
   }
 
-  const canOperate = (ad: any) => {
-    if (!isLoggedIn()) return false;
-    if (role === 'admin') return true;
-    return ad.userId === userId;
-  }
+  // const canOperate = (ad: any) => {
+  //   if (!isLoggedIn()) return false;
+  //   if (role === 'admin') return true;
+  //   return ad.userId === userId;
+  // }
 
   const handleSearch = (val: string) => {
     setFilter({ ...filter, search: val })
@@ -191,10 +199,31 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
   const openForm = (type: 'copy' | 'edit', ad?: Ad) => {
     checkAuth(() => {
       setModalType(type)
-      setCurrentAd(ad || null)
-      setIsAnonymous(type === 'edit' ? ad?.author === '匿名用户' : false)
+      
+      let initialData: any = {}
+      if (type === 'edit' && ad) {
+        initialData = { ...ad }
+        setIsAnonymous(ad.author === '匿名用户')
+      } else {
+        if (ad) {
+          const { id, createdAt, updatedAt, clicks, status, userId, ...rest } = ad
+          initialData = { ...rest }
+        }
+        initialData.author = username || '未知用户'
+        setIsAnonymous(false)
+      }
+      
+      setCurrentAd(initialData)
       setFormVisible(true)
     })
+  }
+
+  // 获取排序按钮样式
+  const getSortButtonStyle = (type: string) => {
+    if (sortBy === type) {
+      return lightButtonStyle
+    }
+    return {}
   }
 
   if (loading && ads.length === 0) return <div style={{ display: 'flex', height: 400, justifyContent: 'center', alignItems: 'center' }}><Spin size={40} /></div>
@@ -203,19 +232,29 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
     <div>
       <style>{`
         .video-player-modal .arco-modal-body { padding: 0 !important; background-color: #000; }
+        /* 强制覆盖 Input.Search 的默认按钮样式 */
+        .custom-search-wrapper .arco-input-search-btn {
+            background-color: #E8F3FF !important;
+            color: #165DFF !important;
+            border: none !important;
+            font-weight: 400; /* 🚀 优化：搜索按钮字体变细 */
+        }
+        .custom-search-wrapper .arco-input-search-btn:hover {
+            background-color: #dbe9ff !important;
+        }
       `}</style>
 
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        {/* 数据统计区域 - 优化3: 增加淡雅背景色块区分 */}
+        {/* 统计看板 */}
         {isManagePage && role !== 'admin' && isLoggedIn() && stats && (
           <div style={{ 
-            background: 'linear-gradient(180deg, #E8FFEA 0%, #FFFFFF 100%)', // 渐变背景
+            background: 'linear-gradient(180deg, #F2F8FF 0%, #FFFFFF 100%)', 
             padding: 24, 
             borderRadius: 16, 
-            border: '1px solid #B7F4C2',
+            border: '1px solid #E8F3FF',
             boxShadow: '0 4px 10px rgba(0,180,42,0.05)'
           }}>
-            <div style={{ marginBottom: 16, fontWeight: 'bold', color: '#00B42A', display: 'flex', alignItems: 'center', fontSize: 16 }}>
+            <div style={{ marginBottom: 16, fontWeight: 'bold', color: '#165DFF', display: 'flex', alignItems: 'center', fontSize: 16 }}>
               <IconUser style={{ marginRight: 8 }} /> 我的投放数据
             </div>
             <Grid.Row gutter={24}>
@@ -227,29 +266,38 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
           </div>
         )}
 
-        {/* 顶部工具栏 - 优化3: 白色卡片背景 */}
         <div style={{ 
           display: 'flex', flexDirection: 'column', gap: '20px', 
           background: '#fff', padding: '24px', borderRadius: 16, 
-          border: '1px solid rgba(229,230,235,0.5)', 
+          border: '1px solid #f2f3f5', 
           boxShadow: '0 4px 10px rgba(0,0,0,0.02)' 
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Title heading={5} style={{ margin: 0, fontWeight: 600 }}>{getPageTitle()}</Title>
-            <Button type="primary" icon={<IconPlus />} size='large' onClick={() => openForm('copy')}>新增广告</Button>
+            
+            {/* 1. 新增广告按钮：淡蓝色 */}
+            <Button 
+              icon={<IconPlus />} 
+              size='large' 
+              onClick={() => openForm('copy')}
+              style={lightButtonStyle}
+            >
+              新增广告
+            </Button>
           </div>
           
           <Divider style={{ margin: 0 }} />
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
             <Space size="large">
-              {/* 🚀 优化2：搜索框优化 */}
+              {/* 2. 搜索按钮：使用 CSS 类覆盖默认样式 */}
               <Input.Search 
+                className="custom-search-wrapper"
                 placeholder="搜索标题、描述或发布人" 
-                style={{ width: 320 }} 
+                style={{ width: 320, borderRadius: 4 }} 
                 onSearch={handleSearch}
                 allowClear
-                searchButton="搜索" // 内嵌搜索按钮
+                searchButton="搜索"
               />
               
               <Select 
@@ -258,7 +306,7 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
                 defaultValue="All" 
                 onChange={handleStatusChange}
                 triggerProps={{ autoAlignPopupWidth: false, autoAlignPopupMinWidth: true }}
-                prefix={<IconFilter />} // 增加筛选图标
+                prefix={<IconFilter />}
               >
                 <Select.Option value="All">全部状态</Select.Option>
                 <Select.Option value="Active">投放中</Select.Option>
@@ -284,18 +332,40 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
             <Space>
               <Text type="secondary" style={{ fontSize: 13 }}>排序方式：</Text>
               <Button.Group>
-                <Button size="small" type={sortBy === 'bid' ? 'primary' : 'secondary'} onClick={() => setSortBy('bid')}>竞价</Button>
-                <Button size="small" type={sortBy === 'price' ? 'primary' : 'secondary'} onClick={() => setSortBy('price')}>价格</Button>
-                <Button size="small" type={sortBy === 'clicks' ? 'primary' : 'secondary'} onClick={() => setSortBy('clicks')}>热度</Button>
+                {/* 3. 排序按钮：选中态为淡蓝色 */}
+                <Button 
+                  size="small" 
+                  type={sortBy === 'bid' ? 'primary' : 'secondary'} 
+                  style={getSortButtonStyle('bid')}
+                  onClick={() => setSortBy('bid')}
+                >
+                  竞价
+                </Button>
+                <Button 
+                  size="small" 
+                  type={sortBy === 'price' ? 'primary' : 'secondary'} 
+                  style={getSortButtonStyle('price')}
+                  onClick={() => setSortBy('price')}
+                >
+                  价格
+                </Button>
+                <Button 
+                  size="small" 
+                  type={sortBy === 'clicks' ? 'primary' : 'secondary'} 
+                  style={getSortButtonStyle('clicks')}
+                  onClick={() => setSortBy('clicks')}
+                >
+                  热度
+                </Button>
               </Button.Group>
             </Space>
           </div>
         </div>
 
-        {/* 广告列表 - 保持网格布局 */}
+        {/* 广告列表 */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
           {sortedAds.map(ad => {
-            const hasPermission = canOperate(ad)
+            // const hasPermission = canOperate(ad)
             return (
               <Card
                 key={ad.id}
@@ -303,12 +373,11 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
                 cover={renderMedia(ad)}
                 onClick={() => handleCardClick(ad)}
                 style={{ 
-                  cursor: 'pointer', borderRadius: 12, // 优化3: 更大的圆角
-                  border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', // 更柔和的阴影
+                  cursor: 'pointer', borderRadius: 12, 
+                  border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', 
                   transition: 'transform 0.2s',
                   opacity: ad.status === 'Paused' ? 0.7 : 1
                 }}
-                className="ad-card-hover" // 可以配合 CSS 做 hover 上浮效果
                 bodyStyle={{ padding: 16 }}
                 actions={isManagePage ? [
                   <Button key="st" type="text" size="small" status={ad.status==='Active'?'default':'warning'} onClick={e => toggleStatus(ad, e)}>
@@ -344,7 +413,7 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
         </div>
       </Space>
 
-      {/* 保持原有的 Modal 代码... */}
+      {/* Modal 代码保持不变 */}
       <Modal visible={videoModalVisible} footer={null} title={null} closable={false} onCancel={() => { setVideoModalVisible(false); if(videoRef.current) videoRef.current.pause(); }} autoFocus={false} style={{ maxWidth: '95vw', padding: 0, backgroundColor: '#000' }}>
         <div style={{ height: '70vh', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
           <video ref={videoRef} src={playingVideoUrl} autoPlay controls style={{ maxWidth: '100%', maxHeight: '80%' }} onEnded={() => setVideoPlayFinished(true)} />

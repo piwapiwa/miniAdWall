@@ -24,7 +24,6 @@ interface DynamicFormProps {
   initialData?: Record<string, any>;
 }
 
-// 默认空对象，防止 undefined 报错
 const DEFAULT_DATA: Record<string, any> = {};
 
 const DynamicForm: React.FC<DynamicFormProps> = ({ 
@@ -36,8 +35,6 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
   const [loading, setLoading] = useState(true);
   const [form] = Form.useForm();
   
-  // 独立管理图片和视频的上传列表状态
-  // Arco Design 的 Upload 组件需要特定格式的 fileList
   const [imageFileList, setImageFileList] = useState<any[]>([]);
   const [videoFileList, setVideoFileList] = useState<any[]>([]);
 
@@ -45,35 +42,23 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     const fetchFormSchema = async () => {
       try {
         setLoading(true);
-        // 1. 获取表单配置
         const response = await axios.get(`/api/form-schema/${schemaId}`);
         setSchema(response.data);
         
-        // 2. 回填表单数据
         if (initialData) {
           form.setFieldsValue(initialData);
           
-          // 回填图片列表（用于显示已有的图片）
           if (initialData.imageUrls && Array.isArray(initialData.imageUrls)) {
             const urls = initialData.imageUrls as string[];
             setImageFileList(urls.map((url, index) => ({
-              uid: `img-${index}`, // 必须有唯一 uid
-              name: `图片${index + 1}`,
-              status: 'done', // 标记为已完成
-              url: url,
-              response: { url } // 为了保持结构一致
+              uid: `img-${index}`, name: `图片${index + 1}`, status: 'done', url: url, response: { url }
             })));
           }
           
-          // 回填视频列表
           if (initialData.videoUrls && Array.isArray(initialData.videoUrls)) {
             const urls = initialData.videoUrls as string[];
             setVideoFileList(urls.map((url, index) => ({
-              uid: `vid-${index}`,
-              name: `视频${index + 1}`,
-              status: 'done',
-              url: url,
-              response: { url }
+              uid: `vid-${index}`, name: `视频${index + 1}`, status: 'done', url: url, response: { url }
             })));
           }
         }
@@ -86,24 +71,20 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     };
 
     fetchFormSchema();
-  }, [schemaId, form, initialData]); // 依赖项改变时重新加载
+  }, [schemaId, form, initialData]);
 
-  // 自定义上传逻辑
   const handleUpload = async (option: any) => {
     const { file, onSuccess, onError } = option;
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      // 调用后端上传接口
       const response = await axios.post('/api/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      // 构造成功的文件对象
       const fileUrl = response.data.url;
       onSuccess({ url: fileUrl });
-      
       return { url: fileUrl };
     } catch (error) {
       Message.error('文件上传失败');
@@ -111,56 +92,36 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     }
   };
 
-  // 提交处理
   const handleSubmit = async (values: any) => {
     try {
       setLoading(true);
-      // 提取上传文件的 URL
-      // 注意：这里需要兼容“新上传的文件”和“回填的旧文件”
       const finalValues = {
         ...values,
-        imageUrls: imageFileList
-          .filter((f: any) => f.status === 'done')
-          .map((f: any) => f.response?.url || f.url),
-        videoUrls: videoFileList
-          .filter((f: any) => f.status === 'done')
-          .map((f: any) => f.response?.url || f.url),
+        imageUrls: imageFileList.filter((f: any) => f.status === 'done').map((f: any) => f.response?.url || f.url),
+        videoUrls: videoFileList.filter((f: any) => f.status === 'done').map((f: any) => f.response?.url || f.url),
       };
 
       if (onSubmit) {
         await onSubmit(finalValues);
       }
       
-      // 提交成功后重置表单
       form.resetFields();
       setImageFileList([]);
       setVideoFileList([]);
     } catch (error) {
       console.error('提交过程中发生错误');
-      // 这里不抛出错误，因为外层通常不需要捕获这个内部组装逻辑的错误
     } finally {
       setLoading(false);
     }
   };
 
-  // 动态渲染字段
   const renderField = (field: FormField) => {
-    // 通用校验规则
-    const rules = [{ 
-      required: field.required, 
-      message: `${field.label}是必填项`,
-      // 对于数组类型（如多图），校验数组长度；其他为字符串或数字
-      type: field.multiple ? 'array' : (field.type === 'number' ? 'number' : 'string') 
-    }];
-
     const commonProps = {
       field: field.name,
       label: field.label,
-      required: field.required,
-      rules: rules as any // 类型断言规避复杂类型报错
+      disabled: field.disabled,
     };
 
-    // --- 文件上传类型 ---
     if (field.type === 'file') {
       const isImage = field.name.toLowerCase().includes('image');
       const currentFileList = isImage ? imageFileList : videoFileList;
@@ -171,61 +132,60 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
       return (
         <Form.Item 
           key={field.name} 
-          label={field.label} 
-          field={field.name} // 必须绑定 field 才能触发 Form 的校验
-          required={field.required}
+          {...commonProps}
+          // 🚀 核心修复：Trigger 设为 fileList，让校验器直接接收最新的 fileList
+          trigger="onChange"
           rules={[{ 
             required: field.required, 
-            validator: (value, cb) => {
-              if (field.required) {
-                // 检查 fileList 是否为空
-                if (currentFileList.length === 0) {
-                  return cb(`请至少上传一个${field.label}`);
+            validator: (value) => {
+              return new Promise<void>((resolve, reject) => {
+                // 这里的 value 就是最新的 fileList (因为 trigger="onChange")
+                // 如果 value 为空或者不是数组，回落到 currentFileList
+                const list = Array.isArray(value) ? value : currentFileList;
+
+                if (field.required) {
+                   if (!list || list.length === 0) {
+                      reject(`请至少上传一个${field.label}`);
+                      return;
+                   }
+                   // 只要有一个文件正在上传或错误，就提示等待
+                   // 但如果至少有一个是 done 且没有 uploading，通常也可以算通过，这里严格要求全部完成
+                   const hasUploading = list.some((f: any) => f.status === 'uploading');
+                   const hasError = list.some((f: any) => f.status === 'error');
+                   
+                   if (hasUploading) {
+                      reject(`请等待${field.label}上传完成`);
+                      return;
+                   }
+                   if (hasError) {
+                      reject(`${field.label}上传失败，请删除重试`);
+                      return;
+                   }
                 }
-                // 检查是否有上传失败或上传中的文件（可选严格模式）
-                const hasDone = currentFileList.some(f => f.status === 'done');
-                if (!hasDone) {
-                   return cb(`请等待${field.label}上传完成`);
-                }
-              }
-              cb();
+                resolve();
+              });
             }
           }]}
         >
           <Upload
             multiple={field.multiple}
-            limit={10} // 限制最大上传数量
+            limit={10}
             listType={isImage ? "picture-card" : "text"}
             accept={acceptType}
             fileList={currentFileList}
             customRequest={handleUpload}
-            disabled={field.disabled} // 支持禁用
+            disabled={field.disabled}
             onChange={(fileList) => {
               setFileList(fileList);
-              
-              // 构造 URL 数组用于 form 字段值的同步
-              const successUrls = fileList
-                .filter(f => f.status === 'done')
-                .map(f => (f.response as any)?.url || f.url);
-              
-              // 手动触发字段值的更新和校验
-              form.setFieldValue(field.name, successUrls);
-              form.validate([field.name]); 
+              // 🚀 关键：直接将 fileList 作为值传给 FormItem，触发校验
+              form.setFieldValue(field.name, fileList);
             }}
             onRemove={(file) => {
-              // 处理删除逻辑
               const newList = currentFileList.filter(item => item.uid !== file.uid);
               setFileList(newList);
-              
-              const successUrls = newList
-                .filter(f => f.status === 'done')
-                .map(f => (f.response as any)?.url || f.url);
-              
-              form.setFieldValue(field.name, successUrls);
-              form.validate([field.name]);
+              form.setFieldValue(field.name, newList);
             }}
           >
-            {/* 上传按钮 UI */}
             {isImage ? (
               <div style={{ textAlign: 'center' }}>
                 <IconUpload style={{ fontSize: 20 }}/>
@@ -239,50 +199,37 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
       );
     }
 
-    // --- 普通输入类型 ---
+    const defaultRules = [{ 
+        required: field.required, 
+        message: `${field.label}是必填项`,
+        type: field.type === 'number' ? 'number' : 'string'
+    }];
+
     switch (field.type) {
       case 'text':
         return (
-          <Form.Item key={field.name} {...commonProps}>
-            <Input 
-              placeholder={field.placeholder} 
-              maxLength={field.maxLength} 
-              disabled={field.disabled} // 🚀 关键修复：支持 disabled
-            />
+          <Form.Item key={field.name} {...commonProps} rules={defaultRules as any}>
+            <Input placeholder={field.placeholder} maxLength={field.maxLength} disabled={field.disabled} />
           </Form.Item>
         );
       case 'number':
         return (
-          <Form.Item key={field.name} {...commonProps}>
-            <Input 
-              type="number" 
-              placeholder={field.placeholder} 
-              disabled={field.disabled} // 🚀 关键修复：支持 disabled
-            />
+          <Form.Item key={field.name} {...commonProps} rules={defaultRules as any}>
+            <Input type="number" placeholder={field.placeholder} disabled={field.disabled} />
           </Form.Item>
         );
       case 'textarea':
         return (
-          <Form.Item key={field.name} {...commonProps}>
-            <Input.TextArea 
-              rows={4} 
-              placeholder={field.placeholder} 
-              maxLength={field.maxLength} 
-              disabled={field.disabled} // 🚀 关键修复：支持 disabled
-            />
+          <Form.Item key={field.name} {...commonProps} rules={defaultRules as any}>
+            <Input.TextArea rows={4} placeholder={field.placeholder} maxLength={field.maxLength} disabled={field.disabled} />
           </Form.Item>
         );
       case 'select':
         return (
-          <Form.Item key={field.name} {...commonProps}>
-            <Select 
-              placeholder={field.placeholder} 
-              disabled={field.disabled} // 🚀 关键修复：支持 disabled
-            >
+          <Form.Item key={field.name} {...commonProps} rules={defaultRules as any}>
+            <Select placeholder={field.placeholder} disabled={field.disabled}>
               {field.options?.map((option) => (
-                <Option key={option.value} value={option.value}>
-                  {option.label}
-                </Option>
+                <Option key={option.value} value={option.value}>{option.label}</Option>
               ))}
             </Select>
           </Form.Item>
@@ -297,31 +244,13 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
 
   return (
     <Card bordered={false} bodyStyle={{ padding: 0 }}>
-      {/* 标题 */}
-      <Title heading={4} style={{ marginTop: 0, marginBottom: 24 }}>
-        {schema.title}
-      </Title>
-      
-      {/* 表单主体 */}
+      <Title heading={4} style={{ marginTop: 0, marginBottom: 24 }}>{schema.title}</Title>
       <Form form={form} layout="vertical" onSubmit={handleSubmit}>
         {schema.fields.map((field) => renderField(field))}
-        
-        {/* 操作按钮 */}
         <Form.Item style={{ marginTop: 20 }}>
           <Space>
-            <Button type="primary" htmlType="submit" loading={loading} size="large">
-              提交
-            </Button>
-            <Button 
-              size="large"
-              onClick={() => {
-                form.resetFields();
-                setImageFileList([]);
-                setVideoFileList([]);
-              }}
-            >
-              重置
-            </Button>
+            <Button type="primary" htmlType="submit" loading={loading} size="large">提交</Button>
+            <Button size="large" onClick={() => { form.resetFields(); setImageFileList([]); setVideoFileList([]); }}>重置</Button>
           </Space>
         </Form.Item>
       </Form>
