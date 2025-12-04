@@ -4,7 +4,7 @@ import {
 } from '../controllers/adController'
 import { authenticateToken, optionalAuth } from '../middleware/auth'
 
-const router = Router()
+const router: Router = Router()
 
 router.get('/stats', optionalAuth, getAdStats)
 router.get('/authors', authenticateToken, getAuthors)
