@@ -6,7 +6,7 @@ import {
   Button, 
   Upload, 
   Card, 
-  Typography, 
+  // Typography, 
   Message, 
   Spin,
   Image,
@@ -16,7 +16,7 @@ import { IconPlus, IconPlayCircle, IconDelete, IconEye } from '@arco-design/web-
 import axios from 'axios'
 import { FormSchema, FormField } from '../types'
 
-const { Title } = Typography
+// const { Title } = Typography
 const { Option } = Select
 
 interface DynamicFormProps {
@@ -438,7 +438,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
 
   return (
     <div style={{ padding: '0 12px' }}>
-      <Title heading={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>{schema.title}</Title>
+      {/* <Title heading={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>{schema.title}</Title> */}
       <Form form={form} layout="vertical" onSubmit={handleSubmit}>
         {schema.fields.map((field) => renderField(field))}
         

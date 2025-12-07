@@ -60,23 +60,33 @@ const AdManager = () => {
   }
 
   const openForm = (mode: 'create' | 'copy' | 'edit', ad?: Ad) => {
-    setFormMode(mode)
-    let initialData: any = {}
-    if (mode === 'edit' && ad) {
-      initialData = { ...ad }
-      setIsAnonymous(ad.author === '匿名用户')
-    } else if (mode === 'copy' && ad) {
-      const { id, createdAt, updatedAt, clicks, status, userId, ...rest } = ad
-      initialData = { ...rest }
-      initialData.author = username || '未知用户'
-      setIsAnonymous(false)
-    } else {
-      initialData.author = username || '未知用户'
-      setIsAnonymous(false)
+  setFormMode(mode)
+  let initialData: any = {}
+  let isAnon = false // 默认不匿名
+  
+  if (mode === 'edit' && ad) {
+    initialData = { ...ad }
+    if (ad.author === '匿名用户') {
+        isAnon = true
+    } else if (ad.author.includes(' (匿名)')) { 
+        // 兼容管理员看到 "真名 (匿名)" 的情况
+        isAnon = true
     }
-    setCurrentAd(initialData)
-    setFormVisible(true)
+  } else if (mode === 'copy' && ad) {
+    const { id, createdAt, updatedAt, clicks, status, userId, ...rest } = ad
+    initialData = { ...rest }
+    initialData.author = username || '未知用户'
+    isAnon = false
+  } else {
+    initialData.author = username || '未知用户'
+    isAnon = false
   }
+  
+  // 统一设置状态
+  setCurrentAd(initialData)
+  setIsAnonymous(isAnon) 
+  setFormVisible(true)
+}
 
   const handleFormSubmit = async (values: any) => {
     try {
@@ -178,8 +188,8 @@ const AdManager = () => {
                 <div style={{ position: 'absolute', right: 16, top: 16 }}>
                   <Switch 
                     checked={ad.status === 'Active'} 
-                    checkedText="开启" 
-                    uncheckedText="暂停"
+                    // checkedText="开启" 
+                    // uncheckedText="暂停"
                     onChange={(val) => handleStatusToggle(ad, val)}
                   />
                 </div>
@@ -288,7 +298,19 @@ const AdManager = () => {
       </Modal>
 
       {/* 表单弹窗 (复用) */}
-      <Modal title={formMode === 'edit' ? '编辑广告' : '新建广告'} visible={formVisible} onCancel={() => setFormVisible(false)} footer={null} unmountOnExit>
+      <Modal 
+        // 动态设置标题：根据 mode 变化
+        title={
+          formMode === 'edit' ? '编辑广告' : 
+          formMode === 'copy' ? '复制广告' : '创建广告'
+        } 
+        visible={formVisible} 
+        onCancel={() => setFormVisible(false)} 
+        footer={null} 
+        unmountOnExit
+        // 设置 Modal 宽度为 500px，适配常规表单大小
+        style={{ width: 500 }} 
+      >
         <div style={{ marginBottom: 16, textAlign: 'right' }}><Checkbox checked={isAnonymous} onChange={setIsAnonymous}>匿名发布</Checkbox></div>
         <DynamicForm 
           schemaId={formMode === 'edit' ? 'update-ad-form' : 'ad-form'} 
