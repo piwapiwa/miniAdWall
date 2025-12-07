@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Landing from './pages/Landing'
 import MainLayout from './layout/MainLayout'
-import AdList from './pages/AdList'
-import AdDetail from './pages/AdDetail'
 import Dashboard from './pages/Dashboard'
+import AdGallery from './pages/AdGallery' // 引入画廊页
+import AdManager from './pages/AdManager' // 引入管理页
+import AdDetail from './pages/AdDetail'
 
 function App() {
   return (
@@ -11,14 +12,13 @@ function App() {
       <Route path="/" element={<Landing />} />
 
       <Route path="/app" element={<MainLayout />}>
-        {/* 默认列表页：公共查看模式 */}
-        <Route index element={<AdList isManagePage={false} />} />
+        {/* 1. 默认首页改为画廊模式 (AdGallery) */}
+        <Route index element={<AdGallery />} />
         
         <Route path="dashboard" element={<Dashboard />} />
         
-        {/* 我的广告/管理页：管理模式 */}
-        {/* 注意：这里没有 MyAds 组件了，直接复用 AdList */}
-        <Route path="my-ads" element={<AdList isManagePage={true} />} />
+        {/* 2. 我的广告/管理页改为 AdManager */}
+        <Route path="my-ads" element={<AdManager />} />
 
         <Route path="ad/:id" element={<AdDetail />} />
       </Route>

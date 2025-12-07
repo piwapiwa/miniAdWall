@@ -3,8 +3,11 @@ export interface DashboardStats {
   total: number;
   active: number;
   totalClicks: number;
+  totalLikes: number;
   avgPrice: number;
   trend: { title: string; clicks: number }[];
+  topLiked: { title: string; likes: number }[];
+  categoryStats: { name: string; value: number }[];
 }
 
 // 广告数据类型
@@ -22,6 +25,8 @@ export interface Ad {
   createdAt: Date;
   updatedAt: Date;
   userId?: number;
+  likes: number;  
+  category: string;
 }
 
 // 广告列表状态类型 (Store)
@@ -32,19 +37,23 @@ export interface AdState {
   loading: boolean;
   error: string | null;
   selectedAd: Ad | null;
-  filter: { search: string; status: string }; 
+  
+  filter: { search: string; status: string; category: string }; 
   
   // Actions
-  setFilter: (filter: { search: string; status: string }) => void;
-  fetchAds: (params?: { search?: string; status?: string; mine?: string; targetUser?: string }) => Promise<void>;
+  setFilter: (filter: { search: string; status: string; category: string }) => void;
+  
+  fetchAds: (params?: { search?: string; status?: string; mine?: string; targetUser?: string; category?: string }) => Promise<void>;
+  
   fetchStats: (params?: { mine?: string }) => Promise<void>;
   fetchAuthors: () => Promise<void>;
-  
   fetchAdById: (id: number) => Promise<Ad | null>;
   createAd: (ad: any) => Promise<Ad>;
   updateAd: (id: number, ad: Partial<Ad>) => Promise<Ad>;
   deleteAd: (id: number) => Promise<void>;
   incrementClicks: (id: number) => Promise<void>;
+  
+  likeAd: (id: number) => Promise<void>;
 }
 
 // 表单字段类型
@@ -58,7 +67,7 @@ export interface FormField {
   maxLength?: number;
   minLength?: number;
   multiple?: boolean;
-  // 🚀 新增：支持禁用状态
+  // 支持禁用状态
   disabled?: boolean; 
 }
 

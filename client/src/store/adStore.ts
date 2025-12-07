@@ -9,9 +9,22 @@ export const useAdStore = create<AdState>((set, get) => ({
   loading: false,
   error: null,
   selectedAd: null,
-  filter: { search: '', status: 'All' },
+  filter: { search: '', status: 'All', category: 'All' },
 
   setFilter: (filter) => set({ filter: { ...get().filter, ...filter } }),
+
+  likeAd: async (id: number) => {
+    try {
+      await axios.post(`/api/ads/${id}/like`)
+      // 本地乐观更新：直接 +1，不用等接口刷新列表，体验更好
+      set((state) => ({
+        ads: state.ads.map(ad => ad.id === id ? { ...ad, likes: ad.likes + 1 } : ad),
+        selectedAd: state.selectedAd?.id === id ? { ...state.selectedAd, likes: state.selectedAd.likes + 1 } : state.selectedAd
+      }))
+    } catch (error) {
+      console.error('点赞失败', error)
+    }
+  },
 
   fetchAds: async (params) => {
     set({ loading: true, error: null })

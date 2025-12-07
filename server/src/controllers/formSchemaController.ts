@@ -64,9 +64,24 @@ const formSchemas: Record<string, any> = {
         required: true,
         placeholder: '请输入广告出价（元）',
         minLength: 0
-      }
+      },
+      {
+        name: 'category',
+        label: '广告分类',
+        type: 'select',
+        required: true,
+        placeholder: '请选择广告分类',
+        options: [
+          { label: '科技数码', value: '科技数码' },
+          { label: '生活日常', value: '生活日常' },
+          { label: '游戏娱乐', value: '游戏娱乐' },
+          { label: '知识分享', value: '知识分享' },
+          { label: '其他', value: '其他' }
+        ]
+      },
     ]
   },
+  
   
   // 2. 编辑表单
   'update-ad-form': {
@@ -130,7 +145,21 @@ const formSchemas: Record<string, any> = {
         required: true,
         placeholder: '请输入广告出价（元）',
         minLength: 0
-      }
+      },
+      {
+        name: 'category',
+        label: '广告分类',
+        type: 'select',
+        required: true,
+        placeholder: '请选择广告分类',
+        options: [
+          { label: '科技数码', value: '科技数码' },
+          { label: '生活日常', value: '生活日常' },
+          { label: '游戏娱乐', value: '游戏娱乐' },
+          { label: '知识分享', value: '知识分享' },
+          { label: '其他', value: '其他' }
+        ]
+      },
     ]
   }
 }

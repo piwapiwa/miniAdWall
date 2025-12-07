@@ -117,16 +117,21 @@ const MainLayout = () => {
           <Menu
             selectedKeys={getSelectedKey()}
             onClickMenuItem={(key) => {
-              if (key === 'home') navigate('/app')
+              if (key === 'home') navigate('/app') // 跳转到 AdGallery
               if (key === 'dashboard') navigate('/app/dashboard')
-              if (key === 'my-ads') navigate('/app/my-ads')
+              if (key === 'my-ads') navigate('/app/my-ads') // 跳转到 AdManager
               if (window.innerWidth < 992) setCollapsed(true)
             }}
             style={{ width: '100%', marginTop: 16, backgroundColor: 'transparent' }}
           >
-            <MenuItem key="home"><IconApps /> 广告列表</MenuItem>
+            <MenuItem key="home"><IconApps /> 广告画廊</MenuItem> 
             <MenuItem key="dashboard"><IconDashboard /> 数据看板</MenuItem>
-            {isLoggedIn() && <MenuItem key="my-ads">{role === 'admin' ? <IconSettings /> : <IconUser />} {role === 'admin' ? '广告管理' : '我的广告'}</MenuItem>}
+            {isLoggedIn() && (
+              <MenuItem key="my-ads">
+                {role === 'admin' ? <IconSettings /> : <IconUser />} 
+                {role === 'admin' ? ' 后台管理' : ' 我的广告'} 
+              </MenuItem>
+            )}
           </Menu>
         </Sider>
 
@@ -144,7 +149,7 @@ const MainLayout = () => {
             <Outlet />
           </Content>
           <Footer style={{ textAlign: 'center', padding: '24px 0 0', color: '#86909c', fontSize: 13 }}>
-            Mini Ad Wall ©2025 Created by ByteDance Camp
+            Mini Ad Wall ©2025 Created by YangBo
           </Footer>
         </Layout>
       </Layout>

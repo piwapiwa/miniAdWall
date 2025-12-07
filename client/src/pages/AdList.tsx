@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { 
   Card, Button, Space, Typography, Spin, Dropdown, Menu, 
   Modal, Message, Divider, Input, Select, Tag, Checkbox, 
-  Statistic, Grid
+  Statistic, Grid, Carousel // ⬅️ 1. 新增 Carousel 组件
 } from '@arco-design/web-react'
 import { 
   IconMore, IconDelete, IconCopy, IconEdit, IconPlus, IconEye, 
-  IconPause, IconUser, IconFilter
+  IconPause, IconUser, IconFilter, IconClose
 } from '@arco-design/web-react/icon'
 import { useAdStore } from '../store/adStore'
 import { useUserStore } from '../store/userStore'
@@ -20,12 +20,11 @@ interface AdListProps {
   isManagePage?: boolean;
 }
 
-// 🚀 优化：字体变细，fontWeight 改为 400 (Regular)
 const lightButtonStyle = {
   backgroundColor: '#E8F3FF', 
   color: '#165DFF', 
   border: 'none',
-  fontWeight: 400 // 变细
+  fontWeight: 400
 }
 
 const AdList = ({ isManagePage = false }: AdListProps) => {
@@ -50,7 +49,6 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
   const [targetRedirectUrl, setTargetRedirectUrl] = useState<string>('')
   const [playingAdId, setPlayingAdId] = useState<number | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [videoPlayFinished, setVideoPlayFinished] = useState(false)
 
   useEffect(() => {
     if (isManagePage && !isLoggedIn()) {
@@ -82,12 +80,6 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
       })
     }
   }
-
-  // const canOperate = (ad: any) => {
-  //   if (!isLoggedIn()) return false;
-  //   if (role === 'admin') return true;
-  //   return ad.userId === userId;
-  // }
 
   const handleSearch = (val: string) => {
     setFilter({ ...filter, search: val })
@@ -172,22 +164,96 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
     return calculateBidScore(b) - calculateBidScore(a)
   })
 
+  // ⬇️ 2. 重写 renderMedia 函数：支持 contain 模式和多图轮播
   const renderMedia = (ad: Ad) => {
-    const src = ad.imageUrls?.[0]
-    return src ? (
-      <div style={{ width: '100%', height: 180, overflow: 'hidden', position: 'relative' }}>
-        <img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: ad.status === 'Paused' ? 'grayscale(100%)' : 'none' }} />
-        {ad.status === 'Paused' && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconPause style={{ fontSize: 32, color: '#fff' }} /></div>}
+    const images = Array.isArray(ad.imageUrls) ? ad.imageUrls : [];
+    
+    // 容器样式
+    const containerStyle = { 
+      width: '100%', 
+      height: 180, 
+      backgroundColor: '#f7f8fa', // 浅灰背景，填充非图片区域
+      position: 'relative' as const, 
+      overflow: 'hidden',
+      display: 'flex',            // 居中显示图片
+      alignItems: 'center',
+      justifyContent: 'center'
+    };
+
+    // 图片样式
+    const imgStyle = { 
+      width: '100%', 
+      height: '100%', 
+      objectFit: 'contain' as const, // 核心修改：完整显示，不裁切
+      filter: ad.status === 'Paused' ? 'grayscale(100%)' : 'none',
+      display: 'block'
+    };
+
+    // 暂停状态遮罩
+    const renderPausedOverlay = () => (
+      ad.status === 'Paused' && (
+        <div style={{ 
+          position: 'absolute', inset: 0, 
+          background: 'rgba(0,0,0,0.3)', 
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 10,
+          pointerEvents: 'none'
+        }}>
+          <IconPause style={{ fontSize: 32, color: '#fff' }} />
+        </div>
+      )
+    );
+
+    // 情况A: 无图片
+    if (images.length === 0) {
+      return (
+        <div style={{ ...containerStyle, flexDirection: 'column', color: '#ccc' }}>
+          无封面
+        </div>
+      );
+    }
+
+    // 情况B: 多张图片 -> 显示轮播
+    if (images.length > 1) {
+      return (
+        <div style={containerStyle}>
+          <Carousel
+            style={{ width: '100%', height: '100%' }}
+            autoPlay
+            indicatorType="dot"
+            showArrow="hover"
+            trigger="hover"
+          >
+            {images.map((src, index) => (
+              <div key={index} style={{ width: '100%', height: '100%' }}>
+                <img src={src} style={imgStyle} alt={`展示图-${index}`} />
+              </div>
+            ))}
+          </Carousel>
+          {renderPausedOverlay()}
+        </div>
+      );
+    }
+
+    // 情况C: 单张图片
+    return (
+      <div style={containerStyle}>
+        <img src={images[0]} style={imgStyle} alt={ad.title} />
+        {renderPausedOverlay()}
       </div>
-    ) : <div style={{ width: '100%', height: 180, background: '#f2f3f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc' }}>无封面</div>
+    );
   }
 
   const handleCardClick = (ad: Ad) => {
-    if (!ad.videoUrls?.length) { window.open(ad.targetUrl); incrementClicks(ad.id); return }
+    if (!ad.videoUrls?.length) { 
+      incrementClicks(ad.id); 
+      // 保持当前页跳转逻辑
+      window.location.href = ad.targetUrl; 
+      return 
+    }
     setPlayingVideoUrl(ad.videoUrls[Math.floor(Math.random() * ad.videoUrls.length)])
     setTargetRedirectUrl(ad.targetUrl)
     setPlayingAdId(ad.id)
-    setVideoPlayFinished(false)
     setVideoModalVisible(true)
   }
 
@@ -218,7 +284,6 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
     })
   }
 
-  // 获取排序按钮样式
   const getSortButtonStyle = (type: string) => {
     if (sortBy === type) {
       return lightButtonStyle
@@ -231,13 +296,21 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
   return (
     <div>
       <style>{`
-        .video-player-modal .arco-modal-body { padding: 0 !important; background-color: #000; }
-        /* 强制覆盖 Input.Search 的默认按钮样式 */
+        .video-player-modal .arco-modal {
+          background-color: transparent !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        .video-player-modal .arco-modal-content {
+          background-color: transparent !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
         .custom-search-wrapper .arco-input-search-btn {
             background-color: #E8F3FF !important;
             color: #165DFF !important;
             border: none !important;
-            font-weight: 400; /* 🚀 优化：搜索按钮字体变细 */
+            font-weight: 400;
         }
         .custom-search-wrapper .arco-input-search-btn:hover {
             background-color: #dbe9ff !important;
@@ -275,7 +348,6 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Title heading={5} style={{ margin: 0, fontWeight: 600 }}>{getPageTitle()}</Title>
             
-            {/* 1. 新增广告按钮：淡蓝色 */}
             <Button 
               icon={<IconPlus />} 
               size='large' 
@@ -290,7 +362,6 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
             <Space size="large">
-              {/* 2. 搜索按钮：使用 CSS 类覆盖默认样式 */}
               <Input.Search 
                 className="custom-search-wrapper"
                 placeholder="搜索标题、描述或发布人" 
@@ -332,7 +403,6 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
             <Space>
               <Text type="secondary" style={{ fontSize: 13 }}>排序方式：</Text>
               <Button.Group>
-                {/* 3. 排序按钮：选中态为淡蓝色 */}
                 <Button 
                   size="small" 
                   type={sortBy === 'bid' ? 'primary' : 'secondary'} 
@@ -365,7 +435,6 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
         {/* 广告列表 */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
           {sortedAds.map(ad => {
-            // const hasPermission = canOperate(ad)
             return (
               <Card
                 key={ad.id}
@@ -396,11 +465,32 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
               >
                 <div style={{ marginTop: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                    <div style={{ overflow: 'hidden' }}>
-                      <div style={{ fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ad.title}</div>
-                      <div style={{ fontSize: 12, color: '#86909c', marginTop: 4 }}>发布人: {ad.author}</div>
-                    </div>
-                    <Tag size="small" color={ad.status==='Active'?'green':'gray'} style={{ borderRadius: 4 }}>{ad.status==='Active'?'投放中':'暂停'}</Tag>
+                    <div style={{ overflow: 'hidden', flex: 1, paddingRight: 8 }}> 
+                      <div style={{ fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {ad.title}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#86909c', marginTop: 4 }}>
+                        发布人: {ad.author}
+                      </div>
+                      
+                      <div style={{ 
+                        fontSize: '13px', 
+                        color: '#4E5969', 
+                        marginTop: '8px',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        lineHeight: '1.5',
+                        minHeight: '3em'
+                      }}>
+                        {ad.description}
+                      </div>
+                    </div> 
+
+                    <Tag size="small" color={ad.status==='Active'?'green':'gray'} style={{ borderRadius: 4, flexShrink: 0 }}>
+                      {ad.status==='Active'?'投放中':'暂停'}
+                    </Tag>
                   </div>
                   <div style={{ marginTop: 16, borderTop: '1px solid #f2f3f5', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <Space size={4}><IconEye style={{ color: '#86909c' }} /><Text type="secondary" style={{ fontSize: 13 }}>{ad.clicks}</Text></Space>
@@ -413,11 +503,79 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
         </div>
       </Space>
 
-      {/* Modal 代码保持不变 */}
-      <Modal visible={videoModalVisible} footer={null} title={null} closable={false} onCancel={() => { setVideoModalVisible(false); if(videoRef.current) videoRef.current.pause(); }} autoFocus={false} style={{ maxWidth: '95vw', padding: 0, backgroundColor: '#000' }}>
-        <div style={{ height: '70vh', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
-          <video ref={videoRef} src={playingVideoUrl} autoPlay controls style={{ maxWidth: '100%', maxHeight: '80%' }} onEnded={() => setVideoPlayFinished(true)} />
-          {videoPlayFinished && <Button type="primary" style={{ marginTop: 20 }} onClick={async () => { await incrementClicks(playingAdId!); window.open(targetRedirectUrl) }}>前往目标网站</Button>}
+      <Modal
+        visible={videoModalVisible}
+        footer={null}
+        title={null}
+        closable={false}
+        onCancel={() => { 
+          setVideoModalVisible(false); 
+          if(videoRef.current) videoRef.current.pause(); 
+        }}
+        autoFocus={false}
+        className="video-player-modal"
+        maskStyle={{ 
+          backgroundColor: 'rgba(0, 0, 0, 0.85)', 
+          backdropFilter: 'blur(10px)' 
+        }}
+        style={{ width: 'auto', background: 'transparent', boxShadow: 'none' }}
+      >
+        <div style={{ 
+          position: 'relative', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          height: '100%'
+        }}>
+          
+          <video
+            ref={videoRef}
+            src={playingVideoUrl}
+            autoPlay
+            controls
+            style={{ 
+              maxWidth: '90vw',
+              maxHeight: '80vh',
+              objectFit: 'contain',
+              backgroundColor: 'transparent', 
+              borderRadius: '16px',
+              boxShadow: '0 0 30px rgba(0,0,0,0.5)',
+              outline: 'none'
+            }}
+            onEnded={async () => {
+              if (playingAdId) {
+                try { await incrementClicks(playingAdId); } catch (e) {}
+              }
+              window.location.href = targetRedirectUrl;
+            }}
+          />
+
+          <div 
+            onClick={() => {
+              setVideoModalVisible(false);
+              if(videoRef.current) videoRef.current.pause();
+            }}
+            style={{
+              marginTop: 24,
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              cursor: 'pointer',
+              backdropFilter: 'blur(4px)',
+              color: '#fff',
+              transition: 'all 0.2s'
+            }}
+          >
+            <IconClose style={{ fontSize: 20 }} />
+          </div>
+
         </div>
       </Modal>
 

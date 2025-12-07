@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import {
-  createAd, getAllAds, getAdById, updateAd, deleteAd, incrementClicks, getAdStats, getAuthors
+  createAd, getAllAds, getAdById, updateAd, deleteAd, incrementClicks, getAdStats, getAuthors, likeAd
 } from '../controllers/adController'
 import { authenticateToken, optionalAuth } from '../middleware/auth'
 
@@ -15,5 +15,6 @@ router.post('/', authenticateToken, createAd)
 router.put('/:id', authenticateToken, updateAd)
 router.delete('/:id', authenticateToken, deleteAd)
 router.post('/:id/clicks', incrementClicks)
+router.post('/:id/like', likeAd)
 
 export default router
