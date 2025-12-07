@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { 
   Card, Space, Typography, Spin, Input, Tag, 
-  Carousel, Avatar, Tabs
+  Carousel, Tabs
 } from '@arco-design/web-react'
 import { 
   IconEye, IconPlayCircle, IconClose, IconHeart, IconHeartFill
