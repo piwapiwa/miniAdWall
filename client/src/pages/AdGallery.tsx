@@ -163,13 +163,8 @@ const AdGallery = () => {
                 </div>
 
                 {/* 2. 第二优先级：发布人 (缩小，作为辅助信息) */}
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                    <Avatar size={20} style={{ backgroundColor: '#165DFF', marginRight: 6 }}>
-                    {ad.author[0]}
-                    </Avatar>
-                    <div style={{ fontSize: 13, color: '#86909c' }}>
-                    {ad.author}
-                    </div>
+                <div style={{ marginBottom: 12, fontSize: 13, color: '#86909c' }}>
+                  {ad.author}
                 </div>
 
                 {/* 3. 第三优先级：内容文案 */}
