@@ -31,7 +31,8 @@ const AuthModal = ({ visible, onCancel, onSuccess }: AuthModalProps) => {
         token: res.data.token,
         username: res.data.username,
         id: res.data.id,
-        role: res.data.role
+        role: res.data.role,
+        balance: res.data.balance
       })
 
       Message.success(activeTab === 'login' ? '登录成功' : '注册成功')
