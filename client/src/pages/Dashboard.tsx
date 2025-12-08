@@ -1,8 +1,8 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, Grid, Typography, Space, Spin, Progress, Tooltip, Tag } from '@arco-design/web-react'
 import { 
   IconTags, IconSound, IconFire, IconHeartFill, IconApps, 
-  IconThunderbolt, IconUser
+  IconThunderbolt, IconUser 
 } from '@arco-design/web-react/icon'
 import { useAdStore } from '../store/adStore'
 import { Ad } from '../types'
@@ -33,16 +33,22 @@ const ColorStatCard = ({ title, value, icon, colorStart, colorEnd }: any) => (
 
 const Dashboard = () => {
   const { stats, fetchStats, ads, fetchAds } = useAdStore()
+  
+  // 📱 移动端适配状态
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
   useEffect(() => {
     fetchStats()
     fetchAds()
+    
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // 🎯 核心逻辑：计算竞价排名 Top 10
+  // 竞价排名计算
   const topBiddingAds = useMemo(() => {
     if (!ads || ads.length === 0) return []
-    // 竞价公式：Score = Price + (Price * Clicks * 0.42)
     const calculateScore = (ad: Ad) => {
       const price = Number(ad.price) || 0
       const clicks = ad.clicks || 0
@@ -156,7 +162,8 @@ const Dashboard = () => {
             style={{ borderRadius: 16, boxShadow: '0 4px 10px rgba(0,0,0,0.02)', height: '100%' }}
             title={<span><IconApps style={{ marginRight: 8, color: '#165DFF' }} /> 广告投放分布</span>}
           >
-            <div style={{ height: 320, overflowY: 'auto', paddingRight: 4 }}>
+            {/* 📱 修复：手机端 height: auto，不再截断内容 */}
+            <div style={{ height: isMobile ? 'auto' : 320, overflowY: isMobile ? 'visible' : 'auto', paddingRight: 4 }}>
               {stats.categoryStats.length > 0 ? stats.categoryStats.map((item, index) => (
                 <div key={item.name} style={{ marginBottom: 24 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -181,7 +188,7 @@ const Dashboard = () => {
             style={{ borderRadius: 16, boxShadow: '0 4px 10px rgba(0,0,0,0.02)', height: '100%' }}
             title={<span><IconFire style={{ marginRight: 8, color: '#FF7D00' }} /> 点击热度 Top 5</span>}
           >
-            <div style={{ height: 320, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+            <div style={{ height: isMobile ? 'auto' : 320, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               {stats.trend.map((item, index) => (
                 <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: 20, justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px dashed #f5f5f5' }}>
                   <div style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
@@ -213,7 +220,7 @@ const Dashboard = () => {
             style={{ borderRadius: 16, boxShadow: '0 4px 10px rgba(0,0,0,0.02)', height: '100%' }}
             title={<span><IconHeartFill style={{ marginRight: 8, color: '#F53F3F' }} /> 最受喜爱 Top 5</span>}
           >
-            <div style={{ height: 320, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+            <div style={{ height: isMobile ? 'auto' : 320, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               {stats.topLiked.map((item, index) => (
                 <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: 20, justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px dashed #f5f5f5' }}>
                   <div style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
@@ -248,18 +255,19 @@ const Dashboard = () => {
             title={
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                 <span style={{fontWeight: 600}}><IconThunderbolt style={{ marginRight: 8, color: '#722ED1' }} /> 竞价排名 Top 10</span>
-                <Tag color="purple" bordered size="small">实时计算</Tag>
+                {!isMobile && <Tag color="purple" bordered size="small">实时计算</Tag>}
               </div>
             }
           >
             <div style={{ padding: '10px 0' }}>
-              <Row gutter={60}> {/* 加大列间距，更美观 */}
+              {/* 📱 修复：手机端 gutter 设为 0，防止撑开屏幕 */}
+              <Row gutter={isMobile ? 0 : 60}> 
                 {/* 左列：1-5 名 */}
                 <Col xs={24} lg={12}>
                   {topBiddingAds.length > 0 ? renderRankingList(topBiddingAds.slice(0, 5), 0) : <div style={{padding: 20, color: '#999'}}>暂无数据</div>}
                 </Col>
                 
-                {/* 右列：6-10 名 (大屏显示) */}
+                {/* 右列：6-10 名 (手机端自动垂直堆叠) */}
                 <Col xs={24} lg={12}>
                   {topBiddingAds.length > 5 && renderRankingList(topBiddingAds.slice(5, 10), 5)}
                 </Col>
