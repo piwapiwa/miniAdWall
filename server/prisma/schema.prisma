@@ -9,22 +9,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 新增：用户模型
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String
-  // 角色，默认 user，管理员为 admin
-  role      String   @default("user") 
-  // 反向关系，一个用户可以有多个广告
-  ads       Ad[]
-  createdAt DateTime @default(now())
+  id           Int           @id @default(autoincrement())
+  username     String        @unique
+  password     String
+  role         String        @default("user")
+  balance      Decimal       @default(100.00)
+  ads          Ad[]
+  // 关联：用户的交易记录
+  transactions Transaction[] 
+  createdAt    DateTime      @default(now())
 }
 
 model Ad {
   id          Int      @id @default(autoincrement())
   title       String
-  author      String   @default("匿名用户")
   description String
   imageUrls   String   @default("[]")
   videoUrls   String   @default("[]")
@@ -32,14 +31,27 @@ model Ad {
   price       Decimal
   clicks      Int      @default(0)
   status      String   @default("Active")
-  
+  likes       Int      @default(0)
+  category    String   @default("其他")
 
-  likes       Int      @default(0)      // 点赞数
-  category    String   @default("其他")  // 分类：科技/生活/游戏等
+  isAnonymous Boolean  @default(false)
 
   userId      Int?
   user        User?    @relation(fields: [userId], references: [id])
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// 交易记录表
+model Transaction {
+  id          Int      @id @default(autoincrement())
+  amount      Decimal  // 变动金额 (+ 为充值，- 为扣费)
+  type        String   // 类型：'系统赠送' | '充值' | '广告扣费'
+  description String?  // 备注，例如 "点击广告: 广告标题"
+  
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  
+  createdAt   DateTime @default(now())
 }

@@ -27,13 +27,14 @@ export interface Ad {
   userId?: number;
   likes: number;  
   category: string;
+  isAnonymous?: boolean;
 }
 
 // 广告列表状态类型 (Store)
 export interface AdState {
   ads: Ad[];
   stats: DashboardStats | null;
-  authors: { username: string; role: string }[];
+  authors: { id: number; username: string; role: string; balance: number }[];
   loading: boolean;
   error: string | null;
   selectedAd: Ad | null;
@@ -54,6 +55,7 @@ export interface AdState {
   incrementClicks: (id: number) => Promise<void>;
   
   likeAd: (id: number) => Promise<void>;
+  topUpUser: (userId: number, amount: number) => Promise<void>;
 }
 
 // 表单字段类型
@@ -75,4 +77,11 @@ export interface FormSchema {
   id: string;
   title: string;
   fields: FormField[];
+}
+
+export interface User {
+  id: number;
+  username: string;
+  role: string;
+  balance: number; 
 }

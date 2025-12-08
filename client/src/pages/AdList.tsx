@@ -13,6 +13,7 @@ import { useUserStore } from '../store/userStore'
 import { Ad } from '../types'
 import DynamicForm from '../components/DynamicForm'
 import AuthModal from '../components/AuthModal'
+import { calculateBidScore } from '../utils/adUtils'
 
 const { Title, Text } = Typography
 
@@ -156,11 +157,13 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
     })
   }
 
-  const calculateBidScore = (ad: Ad) => (Number(ad.price) || 0) + (Number(ad.price) * (ad.clicks || 0) * 0.42)
+  // const calculateBidScore = (ad: Ad) => (Number(ad.price) || 0) + (Number(ad.price) * (ad.clicks || 0) * 0.42)
   const sortedAds = [...ads].sort((a, b) => {
     const pA = Number(a.price), pB = Number(b.price)
+    
     if (sortBy === 'price') return pB - pA
     if (sortBy === 'clicks') return b.clicks - a.clicks
+    
     return calculateBidScore(b) - calculateBidScore(a)
   })
 
@@ -267,19 +270,30 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
       setModalType(type)
       
       let initialData: any = {}
+      let isAnon = false // 定义临时变量
+
       if (type === 'edit' && ad) {
         initialData = { ...ad }
-        setIsAnonymous(ad.author === '匿名用户')
+        
+        // ✅ 修正逻辑：同上，优先使用字段判断
+        if (ad.isAnonymous !== undefined) {
+          isAnon = ad.isAnonymous
+        } else {
+          isAnon = ad.author === '匿名用户'
+        }
+
       } else {
         if (ad) {
-          const { id, createdAt, updatedAt, clicks, status, userId, ...rest } = ad
+          // copy 模式逻辑...
+          const { id, createdAt, updatedAt, clicks, status, userId, isAnonymous, ...rest } = ad
           initialData = { ...rest }
         }
         initialData.author = username || '未知用户'
-        setIsAnonymous(false)
+        isAnon = false
       }
       
       setCurrentAd(initialData)
+      setIsAnonymous(isAnon) // ✅ 正确设置状态
       setFormVisible(true)
     })
   }
@@ -295,27 +309,6 @@ const AdList = ({ isManagePage = false }: AdListProps) => {
 
   return (
     <div>
-      <style>{`
-        .video-player-modal .arco-modal {
-          background-color: transparent !important;
-          box-shadow: none !important;
-          padding: 0 !important;
-        }
-        .video-player-modal .arco-modal-content {
-          background-color: transparent !important;
-          box-shadow: none !important;
-          border: none !important;
-        }
-        .custom-search-wrapper .arco-input-search-btn {
-            background-color: #E8F3FF !important;
-            color: #165DFF !important;
-            border: none !important;
-            font-weight: 400;
-        }
-        .custom-search-wrapper .arco-input-search-btn:hover {
-            background-color: #dbe9ff !important;
-        }
-      `}</style>
 
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* 统计看板 */}

@@ -13,6 +13,11 @@ export const useAdStore = create<AdState>((set, get) => ({
 
   setFilter: (filter) => set({ filter: { ...get().filter, ...filter } }),
 
+  topUpUser: async (userId: number, amount: number) => {
+    await axios.post('/api/ads/topup', { userId, amount });
+    await get().fetchAuthors(); // 刷新列表
+  },
+
   likeAd: async (id: number) => {
     try {
       await axios.post(`/api/ads/${id}/like`)
@@ -123,11 +128,13 @@ export const useAdStore = create<AdState>((set, get) => ({
   incrementClicks: async (id: number) => {
     try {
       await axios.post(`/api/ads/${id}/clicks`)
+      // 成功：本地 +1
       set((state) => ({
         ads: state.ads.map(ad => ad.id === id ? { ...ad, clicks: ad.clicks + 1 } : ad)
       }))
     } catch (error) {
       console.error(error)
+      throw error
     }
   }
 }))

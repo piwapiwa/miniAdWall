@@ -56,22 +56,51 @@ const AdManager = () => {
   }, [])
 
   useEffect(() => {
-    if (role === 'admin') {
-      fetchAuthors()
-      fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser })
-      fetchStats()
-    } else {
-      fetchAds({ mine: 'true' })
-      fetchStats({ mine: 'true' })
+    // 🟢 修复 1：进入页面时，强制重置搜索条件
+    // 这样就不会把画廊页的搜索关键词带进来了
+    setFilter({ search: '', status: 'All', category: 'All' })
+
+    // 稍微延迟一点点执行 fetch，确保 store 状态已更新（虽然 zustand 是同步的，但在 effect 中这样更稳妥）
+    const fetchData = async () => {
+        if (role === 'admin') {
+            await fetchAuthors()
+            // 显式传参覆盖 store 中的值，双重保险
+            await fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser, search: '' })
+            await fetchStats()
+        } else {
+            await fetchAds({ mine: 'true', search: '' })
+            await fetchStats({ mine: 'true' })
+        }
     }
-  }, [role, targetUser, fetchAds, fetchStats])
+    fetchData()
+  }, [role, targetUser]) // 移除 fetchAds 等作为依赖，防止死循环
 
   const handleStatusToggle = async (ad: Ad, checked: boolean) => {
     try {
-      await updateAd(ad.id, { status: checked ? 'Active' : 'Paused' })
-      Message.success(checked ? '广告已上架' : '广告已暂停')
-      if (role === 'admin') fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser })
-      else fetchAds({ mine: 'true' })
+      const targetStatus = checked ? 'Active' : 'Paused';
+      
+      // 调用更新接口
+      const updatedAd = await updateAd(ad.id, { status: targetStatus });
+      
+      // 🟢 核心修复：检查“我想要的状态”和“后端给的状态”是否一致
+      if (targetStatus === 'Active' && updatedAd.status === 'Paused') {
+        // 说明后端风控拦截了，强制设为了 Paused
+        Modal.warning({
+          title: '上架失败',
+          content: '当前账户余额不足以支付该广告的单次点击费用，无法开启投放。请充值后再试。',
+          okText: '知道了'
+        });
+        // 刷新列表以回滚开关状态 UI
+        if (role === 'admin') fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser })
+        else fetchAds({ mine: 'true' })
+        
+      } else {
+        // 正常情况
+        Message.success(checked ? '广告已上架' : '广告已暂停')
+        // 这里不需要全量刷新，本地乐观更新即可，提升体验
+        // 但为了保险（因为 updateAd 已经更新了 store），这里可以不做操作或者简单刷新
+      }
+      
     } catch (e) {
       Message.error('操作失败')
     }
@@ -84,11 +113,14 @@ const AdManager = () => {
     
     if (mode === 'edit' && ad) {
       initialData = { ...ad }
-      if (ad.author === '匿名用户' || ad.author.includes(' (匿名)')) {
-          isAnon = true
+      // 优先使用字段判断
+      if (ad.isAnonymous !== undefined) {
+        isAnon = ad.isAnonymous
+      } else {
+        isAnon = ad.author === '匿名用户' || ad.author.includes(' (匿名)')
       }
     } else if (mode === 'copy' && ad) {
-      const { id, createdAt, updatedAt, clicks, status, userId, ...rest } = ad
+      const { id, createdAt, updatedAt, clicks, status, userId, isAnonymous, ...rest } = ad
       initialData = { ...rest }
       initialData.author = username || '未知用户'
       isAnon = false
@@ -104,19 +136,68 @@ const AdManager = () => {
 
   const handleFormSubmit = async (values: any) => {
     try {
+      // 1. 构造基础 Payload
       const payload = { ...values, price: Number(values.price), isAnonymous }
-      if (formMode === 'create' || formMode === 'copy') {
-        await createAd(payload)
-      } else {
-        await updateAd(currentAd!.id, payload)
+      
+      // 🟢 2. 智能上架逻辑 (修复 Bug 核心)
+      // 如果是编辑模式，且当前广告处于 Paused 状态
+      if (formMode === 'edit' && currentAd?.status === 'Paused') {
+          // 获取当前余额 (可以直接读取 store 的最新状态)
+          const currentBalance = useUserStore.getState().balance;
+          
+          // 如果 余额 >= 新设定的价格，我们假设用户是想恢复上架的
+          if (Number(currentBalance) >= payload.price) {
+              payload.status = 'Active'; 
+          }
       }
-      Message.success('操作成功')
+
+      let res; 
+
+      if (formMode === 'create' || formMode === 'copy') {
+        res = await createAd(payload)
+      } else {
+        if (currentAd) {
+          res = await updateAd(currentAd.id, payload)
+        }
+      }
+
+      // 🟢 3. 修正后的弹窗判断逻辑
+      // 我们定义 "用户期望的状态" (Intended Status)
+      // - 如果 payload 里显式传了 Active，期望就是 Active
+      // - 如果 payload 里没传 status (undefined)，但在创建模式下，默认期望是 Active
+      // - 如果是编辑模式且没传 status，默认期望是维持原状 (如果是 Paused 就 Paused，不应弹窗)
+      
+      let intendedStatus = payload.status;
+      if (!intendedStatus && (formMode === 'create' || formMode === 'copy')) {
+          intendedStatus = 'Active';
+      }
+
+      // 触发报警条件：我期望是 Active，但后端强行返回了 Paused
+      if (res && res.status === 'Paused' && intendedStatus === 'Active') {
+          Modal.warning({
+              title: '余额不足提示',
+              content: '操作已完成，但由于当前账户余额不足以支付该广告的单次点击费用，系统已将其自动暂停（或保持暂停）。请充值后手动开启。',
+              okText: '知道了'
+          });
+      } else {
+          Message.success('操作成功')
+      }
+      
       setFormVisible(false)
-      if (role === 'admin') fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser })
-      else fetchAds({ mine: 'true' })
+      setIsAnonymous(false)
+
+      if (role === 'admin') {
+        fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser })
+      } else {
+        fetchAds({ mine: 'true' })
+      }
       fetchStats({ mine: role === 'admin' ? undefined : 'true' })
-    } catch (error) {
-      Message.error('操作失败')
+
+    } catch (error: any) {
+      console.error(error)
+      // 如果后端返回了具体的错误信息，尝试显示它
+      const errorMsg = error.response?.data?.error || '操作失败，请重试'
+      Message.error(errorMsg)
     }
   }
 
@@ -282,7 +363,7 @@ const AdManager = () => {
                       </span>
                     )}
                   </div>
-                  <style>{`.manager-thumbnail:hover .hover-play { opacity: 1 !important; }`}</style>
+                  {/* 这里不需要再写内联 style，已经移到 components.css */}
                   
                   {/* 右侧信息 */}
                   <div style={{ 
@@ -290,8 +371,8 @@ const AdManager = () => {
                     overflow: 'hidden', 
                     display: 'flex', 
                     flexDirection: 'column', 
-                    justifyContent: 'space-between', // 关键：上下撑开
-                    height: 72 // 关键：强制与左侧图片(72px)等高
+                    justifyContent: 'space-between',
+                    height: 72 
                   }}>
                     
                     {/* 上半部分：标题 + 描述 */}
@@ -305,8 +386,8 @@ const AdManager = () => {
                       </div>
                       
                       <div style={{ 
-                        fontSize: 13, color: '#86909c', // 颜色调淡一点，区分层级
-                        lineHeight: 1.5, // 修复行高，更易读
+                        fontSize: 13, color: '#86909c',
+                        lineHeight: 1.5,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                         {ad.description || '暂无描述'}
@@ -316,7 +397,7 @@ const AdManager = () => {
                     {/* 下半部分：发布者(左) + 价格热度(右) */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                       
-                      {/* 发布者 - 增加一个小图标增加精致感 */}
+                      {/* 发布者 */}
                       <div style={{ fontSize: 12, color: '#86909c', display: 'flex', alignItems: 'center' }}>
                         <Avatar size={16} style={{ backgroundColor: '#C9CDD4', marginRight: 4 }}>
                           {ad.author[0]}

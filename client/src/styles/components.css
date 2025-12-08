@@ -1,0 +1,150 @@
+/* client/src/styles/components.css */
+
+/* =============================================================================
+   1. DynamicForm 样式 (上传组件定制)
+   ============================================================================= */
+
+/* 布局容器：使用 Flex 确保“加号”和“文件”严格对齐 */
+.arco-upload-list-type-picture-card {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important; /* 统一间距 */
+}
+
+/* 统一卡片尺寸与外框 (作用于“已上传项”和“加号按钮”) */
+.arco-upload-list-type-picture-card .arco-upload-list-item,
+.arco-upload-trigger-picture-card {
+  width: 100px !important;
+  height: 100px !important;
+  border-radius: 6px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important; /* 去除默认 margin，完全由 gap 控制 */
+  transition: all 0.2s;
+}
+
+/* 已上传项样式：去除内边距，加边框 */
+.arco-upload-list-type-picture-card .arco-upload-list-item {
+  padding: 0 !important; /* 🔥 关键：去除 Arco 默认的 padding，让图片能撑满 */
+  border: 1px solid #e5e6eb !important; /* 浅灰边框，让白色图片也能看清边界 */
+  overflow: hidden !important;
+}
+
+/* 加号按钮样式 */
+.arco-upload-trigger-picture-card {
+  background-color: #f7f8fa !important;
+  border: 1px dashed #c9cdd4 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.arco-upload-trigger-picture-card:hover {
+  border-color: #165DFF !important;
+}
+
+/* 自定义媒体容器 */
+.custom-media-card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f2f3f5;
+}
+
+/* 内容填充 (核心)：强制 Cover 模式 */
+.custom-media-content {
+  width: 100%;
+  height: 100%;
+  object-fit: cover !important; /* 🔥 关键：裁剪填满，不留白边 */
+  display: block;
+}
+
+/* 播放图标样式 */
+.play-icon-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+.play-icon-overlay svg {
+  font-size: 28px;
+  color: rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+/* 遮罩层交互 (预览/删除) */
+.custom-mask {
+  position: absolute; 
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  gap: 12px;
+  opacity: 0; 
+  transition: opacity 0.3s;
+  z-index: 3;
+  backdrop-filter: blur(2px);
+}
+.arco-upload-list-item:hover .custom-mask {
+  opacity: 1;
+}
+.action-icon { 
+  color: #fff; 
+  cursor: pointer; 
+  font-size: 18px; 
+  padding: 4px;
+}
+.action-icon:hover { 
+  color: #165DFF; 
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+}
+
+/* =============================================================================
+   2. AdList 样式 (视频弹窗 & 搜索框)
+   ============================================================================= */
+
+/* 视频弹窗透明背景覆盖 */
+.video-player-modal .arco-modal {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.video-player-modal .arco-modal-content {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* 搜索框按钮样式覆盖 */
+.custom-search-wrapper .arco-input-search-btn {
+  background-color: #E8F3FF !important;
+  color: #165DFF !important;
+  border: none !important;
+  font-weight: 400;
+}
+.custom-search-wrapper .arco-input-search-btn:hover {
+  background-color: #dbe9ff !important;
+}
+
+/* =============================================================================
+   3. 其他补充样式 (解决 Hover 效果)
+   ============================================================================= */
+
+/* AdGallery 画廊页媒体 hover 效果：鼠标悬停时放大图片并显示播放按钮 */
+.media-container:hover .card-hover-overlay { 
+  opacity: 1 !important; 
+}
+.media-container:hover img { 
+  transform: scale(1.05); 
+}
+
+/* AdManager 管理页列表缩略图 hover 效果 */
+.manager-thumbnail:hover .hover-play {
+  opacity: 1 !important;
+}

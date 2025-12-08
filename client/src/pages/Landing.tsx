@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Typography, Grid, Space, Card, Avatar, Tag } from '@arco-design/web-react'
+import { Button, Typography, Grid, Space, Card, Avatar} from '@arco-design/web-react'
 import { 
   IconRight, IconApps, IconThunderbolt, IconExperiment, IconDashboard
 } from '@arco-design/web-react/icon'
@@ -44,7 +44,7 @@ const Landing = () => {
         <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg, #165DFF 0%, #00B42A 100%)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(22,93,255,0.3)' }}>
           <IconThunderbolt style={{ color: '#fff', fontSize: 20 }} />
         </div>
-        <span style={{ fontSize: 22, fontWeight: 800, color: '#1D2129', letterSpacing: -0.5 }}>Mini AdWall</span>
+        <span style={{ fontSize: 22, fontWeight: 800, color: '#1D2129', letterSpacing: -0.5 }}>Mini Ad Wall</span>
       </div>
       
       <div>
@@ -55,7 +55,7 @@ const Landing = () => {
               {!isMobile && <span style={{ fontWeight: 600, color: '#1d2129' }}>{username}</span>}
             </div>
             {!isMobile && <Button type="secondary" shape="round" onClick={logout}>退出</Button>}
-            <Button type="primary" shape="round" onClick={() => navigate('/app')}>{isMobile ? '控制台' : '进入控制台'}</Button>
+            {/* <Button type="primary" shape="round" onClick={() => navigate('/app')}>{isMobile ? '控制台' : '进入控制台'}</Button> */}
           </Space>
         ) : (
           <Space>
@@ -107,9 +107,9 @@ const Landing = () => {
         
         {/* 2. Hero 主视觉区域 */}
         <div style={{ textAlign: 'center', marginBottom: 100 }}>
-          <Tag color="arcoblue" style={{ borderRadius: 20, padding: '4px 12px', marginBottom: 24, border: '1px solid #165DFF' }}>
+          {/* <Tag color="arcoblue" style={{ borderRadius: 20, padding: '4px 12px', marginBottom: 24, border: '1px solid #165DFF' }}>
             🚀 全新升级 v2.0
-          </Tag>
+          </Tag> */}
           <Title style={{ 
             fontSize: isMobile ? 42 : 64, fontWeight: 800, margin: '0 0 24px', 
             background: 'linear-gradient(90deg, #1D2129 0%, #165DFF 100%)', 
@@ -119,7 +119,7 @@ const Landing = () => {
             激发无限创意<br/>连接品牌价值
           </Title>
           <Text style={{ fontSize: isMobile ? 16 : 20, color: '#4E5969', maxWidth: 600, display: 'block', margin: '0 auto 48px', lineHeight: 1.6 }}>
-            Mini AdWall 是一个智能化的广告投放与展示平台，为您提供从创意展示到数据分析的一站式解决方案。
+            Mini Ad Wall 是一个智能化的广告投放与展示平台，为您提供从创意展示到数据分析的一站式解决方案。
           </Text>
           
           <Space size={24} direction={isMobile ? 'vertical' : 'horizontal'}>
@@ -191,7 +191,7 @@ const Landing = () => {
       </div>
 
       <div style={{ textAlign: 'center', padding: '40px 0', color: '#C9CDD4', fontSize: 13, background: '#fff', borderTop: '1px solid #F2F3F5' }}>
-        <div style={{ marginBottom: 8, fontWeight: 600, color: '#86909c' }}>Mini AdWall Project</div>
+        <div style={{ marginBottom: 8, fontWeight: 600, color: '#86909c' }}>Mini Ad Wall Project</div>
         <div>© 2025 Designed & Developed by YangBo</div>
       </div>
 

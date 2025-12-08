@@ -5,6 +5,7 @@ import './index.css'
 import { BrowserRouter } from 'react-router-dom'
 import '@arco-design/web-react/dist/css/arco.css'
 import axios from 'axios'
+import './styles/components.css'
 
 // --- 🚀 新增 Axios 拦截器配置 ---
 axios.interceptors.request.use((config) => {

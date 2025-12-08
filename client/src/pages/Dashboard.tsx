@@ -5,7 +5,8 @@ import {
   IconThunderbolt, IconUser 
 } from '@arco-design/web-react/icon'
 import { useAdStore } from '../store/adStore'
-import { Ad } from '../types'
+// import { Ad } from '../types'
+import { calculateBidScore } from '../utils/adUtils'
 
 const { Row, Col } = Grid
 const { Title } = Typography
@@ -49,13 +50,16 @@ const Dashboard = () => {
   // 竞价排名计算
   const topBiddingAds = useMemo(() => {
     if (!ads || ads.length === 0) return []
-    const calculateScore = (ad: Ad) => {
-      const price = Number(ad.price) || 0
-      const clicks = ad.clicks || 0
-      return price + (price * clicks * 0.42)
-    }
+    // const calculateScore = (ad: Ad) => {
+    //   const price = Number(ad.price) || 0
+    //   const clicks = ad.clicks || 0
+    //   return price + (price * clicks * 0.42)
+    // }
     return [...ads]
-      .map(ad => ({ ...ad, score: calculateScore(ad) }))
+      .map(ad => ({ 
+        ...ad, 
+        score: calculateBidScore(ad) 
+      }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 10)
   }, [ads])

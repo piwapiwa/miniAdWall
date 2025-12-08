@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import AdGallery from './pages/AdGallery' // 引入画廊页
 import AdManager from './pages/AdManager' // 引入管理页
 import AdDetail from './pages/AdDetail'
+import Wallet from './pages/Wallet'
 
 function App() {
   return (
@@ -21,6 +22,8 @@ function App() {
         <Route path="my-ads" element={<AdManager />} />
 
         <Route path="ad/:id" element={<AdDetail />} />
+
+        <Route path="wallet" element={<Wallet />} />
       </Route>
 
       <Route path="/ad/:id" element={<Navigate to="/app/ad/:id" replace />} />
