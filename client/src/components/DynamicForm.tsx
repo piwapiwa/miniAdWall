@@ -173,29 +173,38 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
           key={field.name} 
           {...commonProps}
           trigger="onChange"
-          rules={[{ 
-            required: field.required, 
-            validator: (value) => {
-              return new Promise<void>((resolve, reject) => {
+          rules={[
+            { 
+              // 🔴 修改点1：移除 required: field.required，完全由自定义 validator 控制
+              validator: (value, callback) => {
+                // value 是表单中绑定的数据 (fileList 数组)
                 const list = Array.isArray(value) ? value : currentFileList;
+                
+                // 手动处理必填逻辑
                 if (field.required) {
-                   if (!list || list.length === 0) { reject(`请至少上传一个${field.label}`); return; }
-                   const hasUploading = list.some((f: any) => f.status === 'uploading');
+                   if (!list || list.length === 0) {
+                     return callback(`请至少上传一个${field.label}`);
+                   }
+                   
+                   // 检查是否有上传失败的文件
                    const hasError = list.some((f: any) => f.status === 'error');
-                   if (hasUploading) { reject(`请等待${field.label}上传完成`); return; }
-                   if (hasError) { reject(`${field.label}上传失败，请删除重试`); return; }
+                   if (hasError) {
+                     return callback(`${field.label}上传失败，请删除重试`);
+                   }
+                   
+                   // 检查是否有正在上传的文件
+                   const hasUploading = list.some((f: any) => f.status === 'uploading');
+                   if (hasUploading) {
+                     return callback(`请等待${field.label}上传完成`);
+                   }
                 }
-                resolve();
-              });
+                
+                // 校验通过
+                callback();
+              }
             }
-          }]}
+          ]}
         >
-          {/* 🚀 核心 CSS 注入：
-            1. 强制统一 picture-card 的尺寸
-            2. 隐藏多余的边框
-            3. 自定义视频卡片样式 
-          */}
-
           <Upload
             multiple={field.multiple}
             limit={10}
@@ -206,13 +215,17 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             disabled={field.disabled}
             onChange={(fileList) => {
               setFileList(fileList);
+              // 🔴 修改点2：更新值后手动触发校验，确保红字提示即时更新
               form.setFieldValue(field.name, fileList);
+              form.validate([field.name]); 
             }}
             onPreview={handlePreview} // 绑定默认预览事件（针对图片）
             onRemove={(file) => {
               const newList = currentFileList.filter(item => item.uid !== file.uid);
               setFileList(newList);
+              // 🔴 修改点3：删除文件时也同步触发校验
               form.setFieldValue(field.name, newList);
+              form.validate([field.name]);
             }}
             // 🚀 核心：自定义渲染列表项，实现视频带播放按钮效果
             renderUploadItem={(itemNode, file) => {
@@ -264,6 +277,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                           const newList = currentList.filter(item => item.uid !== file.uid);
                           setList(newList);
                           form.setFieldValue(field.name, newList);
+                          form.validate([field.name]); // 删除时手动触发校验
                         }} 
                       />
                     </div>
@@ -283,7 +297,6 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
               height: '100%'
             }}>
               <IconPlus style={{ fontSize: 24, color: '#86909c', marginBottom: 4 }} />
-              {/* 可选：如果你想完全像朋友圈，可以把文字去掉，只留一个大加号 */}
             </div>
           </Upload>
         </Form.Item>
