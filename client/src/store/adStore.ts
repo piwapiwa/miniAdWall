@@ -118,7 +118,7 @@ export const useAdStore = create<AdState>((set, get) => ({
         selectedAd: state.selectedAd?.id === id ? null : state.selectedAd,
         loading: false
       }))
-      get().fetchStats()
+      // get().fetchStats()
     } catch (error) {
       set({ loading: false })
       throw error

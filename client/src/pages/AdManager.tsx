@@ -203,12 +203,28 @@ const AdManager = () => {
 
   const handleDelete = (id: number) => {
     Modal.confirm({
-      title: '确认删除', content: '删除后无法恢复，是否继续？',
+      title: '确认删除',
+      content: '删除后无法恢复，是否继续？',
       onOk: async () => {
-        await deleteAd(id)
-        Message.success('删除成功')
-        if (role === 'admin') fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser })
-        else fetchAds({ mine: 'true' })
+        try {
+          await deleteAd(id)
+          Message.success('删除成功')
+          
+          // 🟢 核心修复：根据当前角色，手动刷新对应的数据
+          if (role === 'admin') {
+            // 管理员：刷新列表（带筛选） + 刷新全站统计
+            fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser })
+            fetchStats() // 管理员默认看全站
+          } else {
+            // 普通用户：刷新列表（只看自己） + 刷新个人统计
+            fetchAds({ mine: 'true' })
+            fetchStats({ mine: 'true' }) // ✨ 关键：带上 mine 参数
+          }
+          
+        } catch (e) {
+          // 错误处理已在 store 中抛出，这里虽然不用做太多，但加上 catch 更安全
+          console.error(e)
+        }
       }
     })
   }
