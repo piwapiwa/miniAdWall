@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react' // 👈 引入 useRef
+import { useState, useEffect, useRef } from 'react'
 import { 
   Card, Button, Space, Typography, Spin, Modal, Message, Divider, Input, 
-  Select, Tag, Checkbox, Statistic, Grid, Switch, Badge
+  Select, Tag, Checkbox, Grid, Switch, Avatar 
 } from '@arco-design/web-react'
 import { 
   IconDelete, IconCopy, IconEdit, IconPlus, IconClose, IconPlayCircle, 
-  IconThunderbolt, IconDashboard
+  IconThunderbolt, IconSettings, IconSearch
 } from '@arco-design/web-react/icon'
 import { useAdStore } from '../store/adStore'
 import { useUserStore } from '../store/userStore'
@@ -14,9 +14,20 @@ import DynamicForm from '../components/DynamicForm'
 
 const { Text } = Typography
 
+// 🎨 辅助函数：生成随机渐变背景（用于没有封面的缩略图）
+const getRandomGradient = (id: number) => {
+  const gradients = [
+    'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%)',
+    'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+    'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
+    'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+  ];
+  return gradients[id % gradients.length];
+};
+
 const AdManager = () => {
   const { 
-    ads, loading, fetchAds, deleteAd, createAd, updateAd, incrementClicks, // 👈 引入 incrementClicks
+    ads, loading, fetchAds, deleteAd, createAd, updateAd, incrementClicks,
     filter, setFilter, stats, fetchStats, authors, fetchAuthors 
   } = useAdStore()
   
@@ -28,13 +39,21 @@ const AdManager = () => {
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [targetUser, setTargetUser] = useState<string>('All')
 
-  // ⬇️⬇️⬇️ 新增：视频播放相关状态 (用于测试广告) ⬇️⬇️⬇️
+  // 📱 移动端状态
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  // 视频播放相关
   const [videoModalVisible, setVideoModalVisible] = useState(false)
   const [playingVideoUrl, setPlayingVideoUrl] = useState<string>('')
   const [targetRedirectUrl, setTargetRedirectUrl] = useState<string>('')
   const [playingAdId, setPlayingAdId] = useState<number | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  // ⬆️⬆️⬆️
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     if (role === 'admin') {
@@ -47,7 +66,6 @@ const AdManager = () => {
     }
   }, [role, targetUser, fetchAds, fetchStats])
 
-  // ... (handleStatusToggle, openForm, handleFormSubmit, handleDelete 保持不变)
   const handleStatusToggle = async (ad: Ad, checked: boolean) => {
     try {
       await updateAd(ad.id, { status: checked ? 'Active' : 'Paused' })
@@ -60,33 +78,29 @@ const AdManager = () => {
   }
 
   const openForm = (mode: 'create' | 'copy' | 'edit', ad?: Ad) => {
-  setFormMode(mode)
-  let initialData: any = {}
-  let isAnon = false // 默认不匿名
-  
-  if (mode === 'edit' && ad) {
-    initialData = { ...ad }
-    if (ad.author === '匿名用户') {
-        isAnon = true
-    } else if (ad.author.includes(' (匿名)')) { 
-        // 兼容管理员看到 "真名 (匿名)" 的情况
-        isAnon = true
+    setFormMode(mode)
+    let initialData: any = {}
+    let isAnon = false
+    
+    if (mode === 'edit' && ad) {
+      initialData = { ...ad }
+      if (ad.author === '匿名用户' || ad.author.includes(' (匿名)')) {
+          isAnon = true
+      }
+    } else if (mode === 'copy' && ad) {
+      const { id, createdAt, updatedAt, clicks, status, userId, ...rest } = ad
+      initialData = { ...rest }
+      initialData.author = username || '未知用户'
+      isAnon = false
+    } else {
+      initialData.author = username || '未知用户'
+      isAnon = false
     }
-  } else if (mode === 'copy' && ad) {
-    const { id, createdAt, updatedAt, clicks, status, userId, ...rest } = ad
-    initialData = { ...rest }
-    initialData.author = username || '未知用户'
-    isAnon = false
-  } else {
-    initialData.author = username || '未知用户'
-    isAnon = false
+    
+    setCurrentAd(initialData)
+    setIsAnonymous(isAnon) 
+    setFormVisible(true)
   }
-  
-  // 统一设置状态
-  setCurrentAd(initialData)
-  setIsAnonymous(isAnon) 
-  setFormVisible(true)
-}
 
   const handleFormSubmit = async (values: any) => {
     try {
@@ -118,10 +132,8 @@ const AdManager = () => {
     })
   }
 
-  // ⬇️⬇️⬇️ 新增：点击卡片缩略图进行测试播放 ⬇️⬇️⬇️
   const handleTestClick = (ad: Ad) => {
     if (!ad.videoUrls?.length) { 
-      // 如果没有视频，直接跳转
       window.location.href = ad.targetUrl; 
       return 
     }
@@ -135,129 +147,212 @@ const AdManager = () => {
     <div style={{ paddingBottom: 40 }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         
-        {/* 数据概览保持不变 */}
+        {/* 1. 顶部统计概览 */}
         {stats && (
-          <div style={{ background: '#fff', padding: 24, borderRadius: 16, border: '1px solid #f2f3f5', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ 
+            background: 'linear-gradient(90deg, #165DFF 0%, #4E8AFF 100%)', 
+            padding: isMobile ? '20px' : '24px 32px', borderRadius: 16, 
+            color: '#fff', boxShadow: '0 8px 20px rgba(22, 93, 255, 0.2)' 
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ fontSize: 18, fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-                <IconDashboard style={{ marginRight: 8, color: '#165DFF' }} /> 
-                {role === 'admin' ? '全站数据概览' : '我的投放数据'}
+                <IconSettings style={{ marginRight: 8, opacity: 0.9 }} /> 
+                {role === 'admin' ? '全站投放概览' : '我的投放概览'}
               </div>
-              <Tag color="arcoblue" bordered>{new Date().toLocaleDateString()}</Tag>
+              {!isMobile && (
+                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: 20, fontSize: 12, backdropFilter: 'blur(4px)' }}>
+                  {new Date().toLocaleDateString()}
+                </div>
+              )}
             </div>
-            <Grid.Row gutter={24}>
-              <Grid.Col span={6}><div style={{ background: '#F7F8FA', padding: 16, borderRadius: 8 }}><Statistic title="在投广告" value={stats.active} suffix={`/ ${stats.total}`} styleValue={{ fontWeight: 'bold' }} /></div></Grid.Col>
-              <Grid.Col span={6}><div style={{ background: '#FFF7E8', padding: 16, borderRadius: 8 }}><Statistic title="总点击热度" value={stats.totalClicks} styleValue={{ color: '#FF7D00', fontWeight: 'bold' }} prefix={<IconThunderbolt />} /></div></Grid.Col>
-              <Grid.Col span={6}><div style={{ background: '#F0F9FF', padding: 16, borderRadius: 8 }}><Statistic title="平均出价" value={stats.avgPrice} precision={2} prefix="¥" styleValue={{ color: '#165DFF', fontWeight: 'bold' }} /></div></Grid.Col>
-              <Grid.Col span={6}><div style={{ background: '#F2F3F5', padding: 16, borderRadius: 8 }}><Statistic title="转化率 (模拟)" value={stats.totalClicks > 0 ? (stats.totalClicks * 0.12).toFixed(1) : 0} suffix="%" styleValue={{ fontWeight: 'bold' }} /></div></Grid.Col>
+            
+            <Grid.Row gutter={[16, 16]}>
+              {[
+                { label: '在投 / 总数', val: `${stats.active} / ${stats.total}` },
+                { label: '总点击热度', val: stats.totalClicks },
+                { label: '平均出价', val: `¥${Number(stats.avgPrice).toFixed(2)}` },
+                { label: '总获赞数', val: stats.totalLikes },
+              ].map((item, idx) => (
+                <Grid.Col xs={12} sm={12} md={6} key={idx}>
+                  <div style={{ 
+                    background: 'rgba(255,255,255,0.1)', 
+                    borderRadius: 12, padding: '16px', 
+                    border: '1px solid rgba(255,255,255,0.15)' 
+                  }}>
+                    <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>{item.label}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.5 }}>{item.val}</div>
+                  </div>
+                </Grid.Col>
+              ))}
             </Grid.Row>
           </div>
         )}
 
-        {/* 顶部操作栏保持不变 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: 16, borderRadius: 8 }}>
-          <Space>
-            <Button type="primary" icon={<IconPlus />} onClick={() => openForm('create')}>发布新广告</Button>
-            <Input.Search placeholder="搜索广告..." style={{ width: 240 }} onSearch={(val) => setFilter({ ...filter, search: val })} />
-            <Select placeholder="状态" style={{ width: 120 }} onChange={(val) => setFilter({ ...filter, status: val })} allowClear>
-              <Select.Option value="Active">投放中</Select.Option>
-              <Select.Option value="Paused">已暂停</Select.Option>
-            </Select>
-            {role === 'admin' && (
-              <Select placeholder="发布人" style={{ width: 140 }} value={targetUser} onChange={setTargetUser}>
-                <Select.Option value="All">所有用户</Select.Option>
-                {authors.map(u => <Select.Option key={u.username} value={u.username}>{u.username}</Select.Option>)}
+        {/* 2. 筛选操作栏 */}
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: 16,
+          justifyContent: 'space-between', alignItems: 'center', 
+          background: '#fff', padding: '16px 24px', borderRadius: 16, 
+          boxShadow: '0 4px 10px rgba(0,0,0,0.02)' 
+        }}>
+          <Button type="primary" size="large" icon={<IconPlus />} onClick={() => openForm('create')} style={{ width: isMobile ? '100%' : 'auto', borderRadius: 8, padding: '0 24px' }}>
+            发布新广告
+          </Button>
+          
+          <Space size="medium" direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : 'auto' }}>
+            <Input 
+              prefix={<IconSearch />} 
+              placeholder="搜索广告标题..." 
+              style={{ width: isMobile ? '100%' : 240, borderRadius: 8 }} 
+              onChange={(val) => setFilter({ ...filter, search: val })} 
+            />
+            <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+              <Select placeholder="状态筛选" style={{ width: isMobile ? '100%' : 140 }} onChange={(val) => setFilter({ ...filter, status: val })} allowClear>
+                <Select.Option value="Active">🟢 投放中</Select.Option>
+                <Select.Option value="Paused">⚪ 已暂停</Select.Option>
               </Select>
-            )}
+              {role === 'admin' && (
+                <Select placeholder="发布人" style={{ width: isMobile ? '100%' : 140 }} value={targetUser} onChange={setTargetUser}>
+                  <Select.Option value="All">所有用户</Select.Option>
+                  {authors.map(u => <Select.Option key={u.username} value={u.username}>{u.username}</Select.Option>)}
+                </Select>
+              )}
+            </div>
           </Space>
         </div>
 
+        {/* 3. 广告列表 */}
         {loading ? <div style={{textAlign: 'center', padding: 40}}><Spin/></div> : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+            gap: 20 
+          }}>
             {ads.map(ad => (
               <Card 
                 key={ad.id} 
+                className="hover-card-effect"
                 style={{ 
-                  borderRadius: 8, 
-                  border: ad.status === 'Active' ? '1px solid #165DFF' : '1px solid #e5e6eb',
-                  position: 'relative',
-                  opacity: ad.status === 'Active' ? 1 : 0.8
+                  borderRadius: 16, border: 'none', background: '#fff',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.02)',
+                  opacity: ad.status === 'Active' ? 1 : 0.75,
+                  transition: 'all 0.3s ease'
                 }}
-                bodyStyle={{ padding: 16 }}
+                bodyStyle={{ padding: 20 }}
               >
-                <div style={{ position: 'absolute', right: 16, top: 16 }}>
+                {/* 顶部状态栏 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <Tag color="arcoblue" size="small" style={{ borderRadius: 4 }}>{ad.category}</Tag>
                   <Switch 
                     checked={ad.status === 'Active'} 
-                    // checkedText="开启" 
-                    // uncheckedText="暂停"
+                    checkedText="开启" uncheckedText="暂停"
                     onChange={(val) => handleStatusToggle(ad, val)}
+                    style={{ backgroundColor: ad.status === 'Active' ? '#00B42A' : undefined }}
                   />
                 </div>
 
+                {/* 内容区 */}
                 <div style={{ display: 'flex', gap: 16 }}>
-                  {/* ⬇️⬇️⬇️ 修复：缩略图区域改为可点击，并添加播放图标悬停效果 */}
+                  {/* 左侧缩略图 */}
                   <div 
-                    onClick={() => handleTestClick(ad)} // 点击测试播放
+                    onClick={() => handleTestClick(ad)}
                     className="manager-thumbnail"
                     style={{ 
-                      width: 80, height: 80, 
-                      background: '#f7f8fa', 
-                      borderRadius: 4, 
+                      width: 72, height: 72, 
+                      background: ad.imageUrls?.[0] ? '#f7f8fa' : getRandomGradient(ad.id),
+                      borderRadius: 12, 
                       overflow: 'hidden', 
                       flexShrink: 0, 
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', // 鼠标手势
-                      position: 'relative'
+                      cursor: 'pointer', position: 'relative'
                     }}
                   >
                     {ad.imageUrls?.[0] ? (
                       <>
-                        <img src={ad.imageUrls[0]} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        {/* 悬停时的播放按钮 */}
+                        <img src={ad.imageUrls[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         <div className="hover-play" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s' }}>
-                          <IconPlayCircle style={{ color: '#fff', fontSize: 24 }} />
+                          <IconPlayCircle style={{ color: '#fff', fontSize: 20 }} />
                         </div>
                       </>
-                    ) : <span style={{color:'#ccc', fontSize: 12}}>无图</span>}
+                    ) : (
+                      <span style={{color:'#fff', fontSize: 24, fontWeight: 'bold', opacity: 0.8}}>
+                        {ad.title[0]?.toUpperCase()}
+                      </span>
+                    )}
                   </div>
-                  {/* 注入样式：悬停显示播放按钮 */}
                   <style>{`.manager-thumbnail:hover .hover-play { opacity: 1 !important; }`}</style>
                   
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
-  {/* 1. 标题 */}
-  <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '80%' }}>
-    {ad.title}
-  </div>
-  
-  {/* 2. 发布人 (恢复显示) */}
-  <div style={{ fontSize: 12, color: '#86909c', marginBottom: 8 }}>
-    发布人: {ad.author}
-  </div>
+                  {/* 右侧信息 */}
+                  <div style={{ 
+                    flex: 1, 
+                    overflow: 'hidden', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    justifyContent: 'space-between', // 关键：上下撑开
+                    height: 72 // 关键：强制与左侧图片(72px)等高
+                  }}>
+                    
+                    {/* 上半部分：标题 + 描述 */}
+                    <div>
+                      <div style={{ 
+                        fontSize: 16, fontWeight: 700, color: '#1d2129', 
+                        lineHeight: 1.2, marginBottom: 4,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
+                      }}>
+                        {ad.title}
+                      </div>
+                      
+                      <div style={{ 
+                        fontSize: 13, color: '#86909c', // 颜色调淡一点，区分层级
+                        lineHeight: 1.5, // 修复行高，更易读
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                      }}>
+                        {ad.description || '暂无描述'}
+                      </div>
+                    </div>
 
-  {/* 3. 价格 与 热度 (改为左对齐，热度在价格后面) */}
-  <div style={{ display: 'flex', alignItems: 'center' }}>
-    <Text style={{ color: '#165DFF', fontWeight: 'bold', fontSize: 16, marginRight: 16 }}>
-      ¥{Number(ad.price).toFixed(2)}
-    </Text>
-    
-    <Badge 
-      count={ad.clicks} 
-      maxCount={999} 
-      dotStyle={{ background: '#F53F3F' }} 
-      offset={[5, -3]} // 微调偏移量，避免遮挡文字
-    >
-      <Tag size="small" icon={<IconThunderbolt />}>热度</Tag>
-    </Badge>
-  </div>
-</div>
+                    {/* 下半部分：发布者(左) + 价格热度(右) */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                      
+                      {/* 发布者 - 增加一个小图标增加精致感 */}
+                      <div style={{ fontSize: 12, color: '#86909c', display: 'flex', alignItems: 'center' }}>
+                        <Avatar size={16} style={{ backgroundColor: '#C9CDD4', marginRight: 4 }}>
+                          {ad.author[0]}
+                        </Avatar>
+                        {ad.author}
+                      </div>
+
+                      {/* 价格与热度 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Space size={4} style={{ fontSize: 12, color: '#C9CDD4' }}>
+                          <IconThunderbolt /> {ad.clicks}
+                        </Space>
+                        <Text style={{ color: '#165DFF', fontWeight: 'bold', fontSize: 16, lineHeight: 1 }}>
+                          <span style={{ fontSize: 12, fontWeight: 'normal', marginRight: 1 }}>¥</span>
+                          {Number(ad.price).toFixed(2)}
+                        </Text>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <Divider style={{ margin: '12px 0' }} />
+                <Divider style={{ margin: '16px 0' }} />
 
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Button type="text" size="small" onClick={() => openForm('copy', ad)} icon={<IconCopy />}>复制</Button>
-                  <Button type="text" size="small" onClick={() => openForm('edit', ad)} icon={<IconEdit />}>编辑</Button>
-                  <Button type="text" size="small" status="danger" onClick={() => handleDelete(ad.id)} icon={<IconDelete />}>删除</Button>
+                {/* 底部操作栏 */}
+                <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                  <Button type="text" size="small" style={{ color: '#4E5969' }} onClick={() => openForm('copy', ad)}>
+                    <IconCopy style={{ marginRight: 4 }} /> 复制
+                  </Button>
+                  <div style={{ width: 1, height: 14, background: '#E5E6EB' }} />
+                  <Button type="text" size="small" style={{ color: '#165DFF' }} onClick={() => openForm('edit', ad)}>
+                    <IconEdit style={{ marginRight: 4 }} /> 编辑
+                  </Button>
+                  <div style={{ width: 1, height: 14, background: '#E5E6EB' }} />
+                  <Button type="text" size="small" style={{ color: '#F53F3F' }} onClick={() => handleDelete(ad.id)}>
+                    <IconDelete style={{ marginRight: 4 }} /> 删除
+                  </Button>
                 </div>
               </Card>
             ))}
@@ -265,57 +360,35 @@ const AdManager = () => {
         )}
       </Space>
 
-      {/* ⬇️⬇️⬇️ 新增：视频播放 Modal (用于测试) ⬇️⬇️⬇️ */}
+      {/* 视频播放弹窗 */}
       <Modal
-        visible={videoModalVisible}
-        footer={null}
-        title={null}
-        closable={false}
+        visible={videoModalVisible} footer={null} title={null} closable={false}
         onCancel={() => { setVideoModalVisible(false); if(videoRef.current) videoRef.current.pause(); }}
-        autoFocus={false}
-        className="video-player-modal"
-        maskStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(10px)' }}
+        autoFocus={false} className="video-player-modal"
+        maskStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.9)', backdropFilter: 'blur(20px)' }}
         style={{ width: 'auto', background: 'transparent', boxShadow: 'none' }}
       >
-        <style>{`.video-player-modal .arco-modal { background: transparent !important; box-shadow: none !important; padding: 0 !important; }`}</style>
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <video
-            ref={videoRef}
-            src={playingVideoUrl}
-            autoPlay
-            controls
-            style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 16, boxShadow: '0 0 30px rgba(0,0,0,0.5)', outline: 'none' }}
-            onEnded={async () => { 
-              // 这里的逻辑和画廊页一致，用于测试跳转功能
-              if(playingAdId) try{await incrementClicks(playingAdId)}catch(e){}; 
-              window.location.href = targetRedirectUrl; 
-            }}
+            ref={videoRef} src={playingVideoUrl} autoPlay controls
+            style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 16, boxShadow: '0 20px 50px rgba(0,0,0,0.5)', outline: 'none' }}
+            onEnded={async () => { if(playingAdId) try{await incrementClicks(playingAdId)}catch(e){}; window.location.href = targetRedirectUrl; }}
           />
-          <div onClick={() => { setVideoModalVisible(false); if(videoRef.current) videoRef.current.pause(); }} style={{ marginTop: 24, width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', color: '#fff' }}>
-            <IconClose />
+          <div onClick={() => { setVideoModalVisible(false); if(videoRef.current) videoRef.current.pause(); }} style={{ marginTop: 32, width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', color: '#fff', backdropFilter: 'blur(10px)' }}>
+            <IconClose style={{ fontSize: 24 }} />
           </div>
         </div>
       </Modal>
 
-      {/* 表单弹窗 (复用) */}
+      {/* 表单弹窗 */}
       <Modal 
-        // 动态设置标题：根据 mode 变化
-        title={
-          formMode === 'edit' ? '编辑广告' : 
-          formMode === 'copy' ? '复制广告' : '创建广告'
-        } 
-        visible={formVisible} 
-        onCancel={() => setFormVisible(false)} 
-        footer={null} 
-        unmountOnExit
-        // 设置 Modal 宽度为 500px，适配常规表单大小
-        style={{ width: 500 }} 
+        title={formMode === 'edit' ? '编辑广告' : formMode === 'copy' ? '复制广告' : '创建广告'} 
+        visible={formVisible} onCancel={() => setFormVisible(false)} footer={null} unmountOnExit style={{ width: isMobile ? '90%' : 500 }} 
       >
         <div style={{ marginBottom: 16, textAlign: 'right' }}><Checkbox checked={isAnonymous} onChange={setIsAnonymous}>匿名发布</Checkbox></div>
         <DynamicForm 
           schemaId={formMode === 'edit' ? 'update-ad-form' : 'ad-form'} 
-          onSubmit={handleFormSubmit} 
-          initialData={currentAd || {}} 
+          onSubmit={handleFormSubmit} initialData={currentAd || {}} 
           onCancel={() => setFormVisible(false)}
           okText={formMode === 'edit' ? '保存修改' : (formMode === 'copy' ? '复制并创建' : '立即发布')}
         />
