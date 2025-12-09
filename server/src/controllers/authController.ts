@@ -3,8 +3,9 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { AuthRequest } from '../middleware/auth' 
+import prisma from '../prismaClient'
 
-const prisma = new PrismaClient()
+// const prisma = new PrismaClient()
 const JWT_SECRET = process.env.JWT_SECRET || 'mini-ad-wall-secret-key'
 
 

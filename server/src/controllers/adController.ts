@@ -4,8 +4,9 @@ import { AuthRequest } from '../middleware/auth'
 import { z } from 'zod'
 import fs from 'fs'
 import path from 'path'
+import prisma from '../prismaClient'
 
-const prisma = new PrismaClient()
+// const prisma = new PrismaClient()
 
 // Zod Schema
 const createAdSchema = z.object({
@@ -14,10 +15,10 @@ const createAdSchema = z.object({
   targetUrl: z.string().url("目标链接格式不正确"),
   price: z.number().nonnegative("价格不能为负数"),
   category: z.string().optional(),
-  imageUrls: z.array(z.string()).optional(),
-  videoUrls: z.array(z.string()).optional(),
+  imageUrls: z.array(z.string()).min(1, "至少上传一张图片"), 
+  videoUrls: z.array(z.string()).min(1, "至少上传一个视频"),
   isAnonymous: z.boolean().optional(),
-  status: z.string().optional() // 允许前端传 status
+  status: z.string().optional() 
 });
 
 const safeParse = (str: string | null) => {
@@ -353,22 +354,34 @@ export const getAdStats = async (req: AuthRequest, res: Response) => {
     const where: any = {}
     if (mine === 'true' && req.user) where.userId = req.user.id
 
+    // 1. 基础统计（总数和在投数保持原逻辑）
     const totalAds = await prisma.ad.count({ where })
     const activeAds = await prisma.ad.count({ where: { ...where, status: 'Active' } })
+    
+    // 🟢 2. 定义“仅在投广告”的筛选条件
+    const activeWhere = { ...where, status: 'Active' }; 
+
+    // 3. 聚合数据（点击、获赞、均价）：使用 activeWhere
     const aggregations = await prisma.ad.aggregate({
       _sum: { clicks: true, likes: true },
       _avg: { price: true },
-      where
+      where: activeWhere 
     })
     
+    // 4. 趋势和热门：使用 activeWhere
     const recentAds = await prisma.ad.findMany({
-      take: 5, orderBy: { clicks: 'desc' }, select: { title: true, clicks: true }, where
+      take: 5, orderBy: { clicks: 'desc' }, select: { title: true, clicks: true }, where: activeWhere
     })
     const topLikedAds = await prisma.ad.findMany({
-        take: 5, orderBy: { likes: 'desc' }, select: { title: true, likes: true }, where
+        take: 5, orderBy: { likes: 'desc' }, select: { title: true, likes: true }, where: activeWhere
     })
+
+    // 🟢 5. [修复核心] 分类分布：必须使用 activeWhere，否则会统计暂停的广告
     const categoryGroup = await prisma.ad.groupBy({
-        by: ['category'], _count: { category: true }, where, orderBy: { _count: { category: 'desc' } }
+        by: ['category'], 
+        _count: { category: true }, 
+        where: activeWhere, // <--- 关键修复：只统计 Active
+        orderBy: { _count: { category: 'desc' } }
     })
 
     res.json({

@@ -9,12 +9,13 @@ import formSchemaRouter from './routes/form-schema'
 import authRouter from './routes/auth'
 import 'express-async-errors';
 import { errorHandler } from './middleware/errorHandler';
+import prisma from './prismaClient'
 
 // 加载环境变量
 dotenv.config()
 
 // 初始化 Prisma 客户端
-const prisma = new PrismaClient()
+// const prisma = new PrismaClient()
 
 // 创建 Express 应用
 const app = express()

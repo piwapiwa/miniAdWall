@@ -6,7 +6,6 @@ import {
   Button, 
   Upload, 
   Card, 
-  // Typography, 
   Message, 
   Spin,
   Image,
@@ -16,7 +15,6 @@ import { IconPlus, IconPlayCircle, IconDelete, IconEye } from '@arco-design/web-
 import axios from 'axios'
 import { FormSchema, FormField } from '../types'
 
-// const { Title } = Typography
 const { Option } = Select
 
 interface DynamicFormProps {
@@ -109,15 +107,10 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     }
   };
 
-  // 统一预览处理逻辑
   const handlePreview = (file: any) => {
-    // 获取文件地址：优先用服务端返回的 url，如果是本地刚选的则生成 blob url
     const url = file.url || (file.originFile && URL.createObjectURL(file.originFile));
-    
     if (!url) return;
 
-    // 判断是否为视频
-    // 1. 根据文件名后缀 2. 根据文件类型 3. 检查是否在视频列表中
     const isVideo = 
       file.name?.match(/\.(mp4|webm|ogg|mov)$/i) || 
       file.type?.includes('video') || 
@@ -136,11 +129,10 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     try {
       setLoading(true);
       
-      // 构造最终数据
       const finalValues = {
         ...values,
         imageUrls: imageFileList
-            .filter((f: any) => f.status === 'done' || f.url) // 确保只提交成功的
+            .filter((f: any) => f.status === 'done' || f.url) 
             .map((f: any) => f.response?.url || f.url),
         videoUrls: videoFileList
             .filter((f: any) => f.status === 'done' || f.url)
@@ -148,11 +140,9 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
       };
 
       if (onSubmit) {
-        // 等待父组件处理完成
         await onSubmit(finalValues);
       }
       
-      // 提交成功后清空表单
       form.resetFields();
       setImageFileList([]);
       setVideoFileList([]);
@@ -161,7 +151,6 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
       console.error('提交过程中发生错误:', error);
       Message.error('提交失败，请重试');
     } finally {
-      // 🟢 无论成功还是失败，强制关闭 Loading 状态
       setLoading(false);
     }
   };
@@ -183,38 +172,30 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         <Form.Item 
           key={field.name} 
           {...commonProps}
-          trigger="onChange" // 确保文件变化时立即触发校验
+          trigger="onChange" 
+          required={field.required} // 这里的 required 只负责显示红星
           rules={[
             { 
-              // 🔴 重点修复：这里不要写 required: field.required
-              // 完全由 validator 内部逻辑控制，防止规则冲突导致移动端卡死
-              validator: (value) => {
-                return new Promise<void>((resolve, reject) => {
-                  // value 可能是 undefined，所以要回退到 currentFileList
-                  const list = Array.isArray(value) ? value : currentFileList;
-                  
-                  if (field.required) {
-                     if (!list || list.length === 0) {
-                       reject(`请至少上传一个${field.label}`);
-                       return;
-                     }
-                     
-                     const hasUploading = list.some((f: any) => f.status === 'uploading');
-                     if (hasUploading) {
-                       reject(`请等待${field.label}上传完成`);
-                       return;
-                     }
+              // 🚀 核心修复：使用 callback 方式进行自定义校验
+              validator: (value, callback) => {
+                // value 是 Form 层面感知到的值，currentFileList 是组件 state
+                // 优先使用 value，防止 state 更新延迟导致校验不同步
+                const list = Array.isArray(value) ? value : currentFileList;
+                
+                // 1. 必填校验：检查 list 是否为空数组
+                if (field.required) {
+                   if (!list || list.length === 0) {
+                     return callback(`请至少上传一个${field.label}`);
+                   }
+                }
 
-                     const hasError = list.some((f: any) => f.status === 'error');
-                     if (hasError) {
-                       reject(`${field.label}上传失败，请删除重试`);
-                       return;
-                     }
-                  }
-                  
-                  // 所有检查通过
-                  resolve();
-                });
+                // 2. 错误文件校验
+                if (list && list.some((f: any) => f.status === 'error')) {
+                   return callback(`${field.label}上传失败，请删除重试`);
+                }
+                
+                // 校验通过
+                callback();
               }
             }
           ]}
@@ -227,34 +208,27 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             fileList={currentFileList}
             customRequest={handleUpload}
             disabled={field.disabled}
-            //上传前检查文件大小
             beforeUpload={(file) => {
-              const isLt500M = file.size < 500 * 1024 * 1024; // 限制为 500MB
+              const isLt500M = file.size < 500 * 1024 * 1024;
               if (!isLt500M) {
                 Message.error(`文件 ${file.name} 超过 500MB，无法上传`);
-                // 返回 false 阻止上传
                 return false;
               }
               return true;
             }}
             onChange={(fileList) => {
               setFileList(fileList);
-              // 🟢 关键：手动更新表单值并触发校验
+              // 🟢 更新表单值
               form.setFieldValue(field.name, fileList);
-              // 加一个延时校验，确保状态已同步（解决移动端有时候反应慢的问题）
-              setTimeout(() => {
-                  form.validate([field.name]).catch(() => {}); 
-              }, 0);
+              // 🟢 立即触发校验，消除错误提示
+              form.validate([field.name]).catch(() => {}); 
             }}
             onPreview={handlePreview}
             onRemove={(file) => {
               const newList = currentFileList.filter(item => item.uid !== file.uid);
               setFileList(newList);
               form.setFieldValue(field.name, newList);
-              // 删除时也触发校验
-              setTimeout(() => {
-                  form.validate([field.name]).catch(() => {});
-              }, 0);
+              form.validate([field.name]).catch(() => {});
             }}
             renderUploadItem={(itemNode, file) => {
               const fileUrl = file.url || (file.response as any)?.url || (file.originFile && URL.createObjectURL(file.originFile));
@@ -288,7 +262,6 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
                           const newList = currentFileList.filter(item => item.uid !== file.uid);
                           setFileList(newList);
                           form.setFieldValue(field.name, newList);
-                          // 触发校验
                           form.validate([field.name]).catch(() => {});
                         }} 
                       />
@@ -306,10 +279,10 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
       );
     }
 
-    // 其他类型的字段保持默认校验规则
+    // 其他字段...
     const defaultRules = [{ 
         required: field.required, 
-        message: `${field.label}是必填项`,
+        message: `请输入${field.label}`, // 优化默认提示语
         type: field.type === 'number' ? 'number' : 'string'
     }];
 
@@ -347,13 +320,11 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     }
   };
 
-  // 修复 loading 变量报错：现在 loading 是组件内的 state，不会报错了
   if (loading && !schema) return <div style={{textAlign: 'center', padding: 20}}><Spin /></div>;
   if (!schema) return <Card>配置不存在</Card>;
 
   return (
     <div style={{ padding: '0 12px' }}>
-      {/* <Title heading={4} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>{schema.title}</Title> */}
       <Form form={form} layout="vertical" onSubmit={handleSubmit}>
         {schema.fields.map((field) => renderField(field))}
         
@@ -375,19 +346,17 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         </div>
       </Form>
 
-      {/* 图片预览组件 */}
       <Image.Preview
         visible={previewVisible}
         src={previewImageSrc}
         onVisibleChange={setPreviewVisible}
       />
 
-      {/* 视频预览弹窗 - 修复 bodyStyle 报错，使用 style 控制 */}
       <Modal
-        title={null} // 朋友圈看视频通常没有标题栏
+        title={null}
         visible={videoModalVisible}
         footer={null}
-        closable={false} // 点击遮罩关闭即可，更沉浸
+        closable={false}
         onCancel={() => setVideoModalVisible(false)}
         style={{ width: 'auto', background: 'transparent', boxShadow: 'none' }}
       >

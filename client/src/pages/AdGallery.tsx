@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { 
   Card, Space, Typography, Spin, Input,
-  Carousel, Tabs, Button, Modal, Avatar 
+  Carousel, Tabs, Button, Modal, Avatar, Tooltip
 } from '@arco-design/web-react'
 import { 
   IconPlayCircle, IconClose, IconHeart, IconHeartFill, IconUser, IconThunderbolt,
@@ -12,6 +12,19 @@ import { Ad } from '../types'
 import { sortAdsByScore, calculateBidScore } from '../utils/adUtils'
 
 const { Title, Text } = Typography
+
+// 放在文件顶部 import 下方
+const transparentBubbleStyle: React.CSSProperties = {
+  backgroundColor: 'rgba(255, 255, 255, 0.75)', // 半透明白背景
+  backdropFilter: 'blur(16px) saturate(180%)', // 毛玻璃模糊效果
+  WebkitBackdropFilter: 'blur(16px) saturate(180%)', //兼容 Safari
+  color: '#1D2129', // 深色文字，保证阅读清晰
+  borderRadius: '16px', // 大圆角
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)', // 柔和的投影增加层次感
+  border: '1px solid rgba(255, 255, 255, 0.3)', // 微弱的白边框增加精致感
+  padding: '10px 14px', // 增加一点内边距让气泡更饱满
+  fontSize: '13px',
+};
 
 // 🎨 渐变背景生成
 const getRandomCoolGradient = (id: number) => {
@@ -276,23 +289,71 @@ const AdGallery = () => {
               bodyStyle={{ padding: '16px 24px 24px' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <div style={{ fontWeight: 700, fontSize: 17, color: '#1D2129', lineHeight: 1.4, flex: 1, marginRight: 12, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {ad.title}
-                </div>
+                {/* 标题 Tooltip */}
+                <Tooltip 
+                  content={ad.title}
+                  color="rgba(255,255,255,0)" // 确保背景透明
+                  triggerProps={{ 
+                    showArrow: false,
+                    popupStyle: transparentBubbleStyle // 👈 样式移到这里
+                  }}
+                >
+                  <div style={{ 
+                    fontWeight: 700, fontSize: 17, color: '#1D2129', lineHeight: 1.4, 
+                    flex: 1, marginRight: 12, 
+                    display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' 
+                  }}>
+                    {ad.title}
+                  </div>
+                </Tooltip>
+                
                 <div style={{ color: '#165DFF', fontWeight: 800, fontSize: 18, fontFamily: 'DIN Alternate, sans-serif' }}>
                   <span style={{ fontSize: 13, marginRight: 2 }}>¥</span>{Number(ad.price).toFixed(0)}
                 </div>
               </div>
 
-              <div style={{ fontSize: 13, color: '#86909c', marginBottom: 20, lineHeight: '22px', height: 44, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                {ad.description}
-              </div>
+              {/* 🟢 [修复点 2] 描述 Tooltip */}
+              <Tooltip 
+                content={ad.description}
+                color="rgba(255,255,255,0)"
+                triggerProps={{ 
+                  showArrow: false,
+                  popupStyle: transparentBubbleStyle // 👈 样式移到这里
+                }}
+              >
+                <div style={{ 
+                  fontSize: 13, color: '#86909c', marginBottom: 20, lineHeight: '22px', 
+                  height: 44, overflow: 'hidden', 
+                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' 
+                }}>
+                  {ad.description}
+                </div>
+              </Tooltip>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(22, 93, 255, 0.08)', paddingTop: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <Avatar size={20} style={{ backgroundColor: '#E8F3FF', color: '#165DFF', marginRight: 8 }}>{ad.author[0]}</Avatar>
-                  <span style={{ fontSize: 12, color: '#86909c' }}>{ad.author}</span>
-                </div>
+                
+                {/* 🟢 [修复点 3] 发布人 Tooltip */}
+                <Tooltip 
+                  content={ad.author}
+                  color="rgba(255,255,255,0)"
+                  triggerProps={{ 
+                    showArrow: false,
+                    popupStyle: transparentBubbleStyle // 👈 样式移到这里
+                  }}
+                >
+                  <div style={{ 
+                    display: 'flex', alignItems: 'center',
+                    maxWidth: '50%',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
+                  }}>
+                    <Avatar size={20} style={{ backgroundColor: '#E8F3FF', color: '#165DFF', marginRight: 8, flexShrink: 0 }}>
+                      {ad.author[0]}
+                    </Avatar>
+                    <span style={{ fontSize: 12, color: '#86909c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {ad.author}
+                    </span>
+                  </div>
+                </Tooltip>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <Space size={4} style={{ color: '#86909c', fontSize: 12 }}>

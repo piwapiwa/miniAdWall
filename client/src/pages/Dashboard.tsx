@@ -50,12 +50,9 @@ const Dashboard = () => {
   // 竞价排名计算
   const topBiddingAds = useMemo(() => {
     if (!ads || ads.length === 0) return []
-    // const calculateScore = (ad: Ad) => {
-    //   const price = Number(ad.price) || 0
-    //   const clicks = ad.clicks || 0
-    //   return price + (price * clicks * 0.42)
-    // }
+    
     return [...ads]
+      .filter(ad => ad.status === 'Active') 
       .map(ad => ({ 
         ...ad, 
         score: calculateBidScore(ad) 
