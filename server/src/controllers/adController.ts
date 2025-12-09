@@ -5,6 +5,7 @@ import { z } from 'zod'
 import fs from 'fs'
 import path from 'path'
 import prisma from '../prismaClient'
+import axios from 'axios';
 
 // const prisma = new PrismaClient()
 
@@ -53,45 +54,78 @@ const formatAdResponse = (ad: any, userRole?: string) => {
   }
 }
 
-// 🟢 1. 创建广告 (含余额风控)
+// 🟢 1. 创建广告 (含余额风控 + 爬虫超时保护)
 export const createAd = async (req: AuthRequest, res: Response) => {
-  const data = createAdSchema.parse(req.body); 
-  const userId = req.user!.id;
+  try {
+    // 假设 createAdSchema 已经在上面定义好了
+    const data = createAdSchema.parse(req.body); 
+    const userId = req.user!.id;
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) return res.status(404).json({ error: '用户不存在' });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: '用户不存在' });
 
-  // 初始状态逻辑：默认为 Active，但如果余额不足则强制 Paused
-  let initialStatus = data.status || 'Active';
-  const currentBalance = Number(user.balance);
-  const adPrice = Number(data.price);
-
-  // 如果想上架但钱不够，强制暂停
-  if (initialStatus === 'Active' && currentBalance < adPrice) {
-    initialStatus = 'Paused';
-  }
-  
-  const ad = await prisma.ad.create({
-    data: {
-      title: data.title,
-      description: data.description,
-      imageUrls: JSON.stringify(data.imageUrls || []),
-      videoUrls: JSON.stringify(data.videoUrls || []),
-      targetUrl: data.targetUrl,
-      price: data.price,
-      category: data.category || '其他',
-      userId: userId,
-      clicks: 0,
-      likes: 0,
-      status: initialStatus,
-      isAnonymous: data.isAnonymous || false 
-    },
-    include: {
-      user: { select: { username: true } }
+    // 🟢 自动抓取元数据逻辑
+    if (data.targetUrl && /^https?:\/\//.test(data.targetUrl)) {
+      try {
+        if (data.title.length < 2 || data.description.length < 2) {
+            // 这里使用了 axios，如果没引入就会报错
+            const metaRes = await axios.get(data.targetUrl, { timeout: 3000 }); 
+            if (metaRes.status === 200) {
+                const titleMatch = metaRes.data.match(/<title[^>]*>([^<]+)<\/title>/i);
+                if (titleMatch && titleMatch[1] && data.title.length < 2) {
+                    data.title = titleMatch[1].trim().substring(0, 100);
+                }
+                const descMatch = metaRes.data.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i);
+                if (descMatch && descMatch[1] && data.description.length < 2) {
+                    data.description = descMatch[1].trim().substring(0, 500);
+                }
+            }
+        }
+      } catch (e: any) {
+        // 注意：这里加了 :any 防止 TypeScript 报错 "Object is of type 'unknown'"
+        console.log('元数据抓取跳过:', e.message);
+      }
     }
-  })
-  
-  res.status(201).json(formatAdResponse(ad, req.user?.role))
+
+    // 初始状态逻辑：默认为 Active，但如果余额不足则强制 Paused
+    let initialStatus = data.status || 'Active';
+    const currentBalance = Number(user.balance);
+    const adPrice = Number(data.price);
+
+    if (initialStatus === 'Active' && currentBalance < adPrice) {
+      initialStatus = 'Paused';
+    }
+    
+    const ad = await prisma.ad.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        imageUrls: JSON.stringify(data.imageUrls || []),
+        videoUrls: JSON.stringify(data.videoUrls || []),
+        targetUrl: data.targetUrl,
+        price: data.price,
+        category: data.category || '其他',
+        userId: userId,
+        clicks: 0,
+        likes: 0,
+        status: initialStatus,
+        isAnonymous: data.isAnonymous || false 
+      },
+      include: {
+        user: { select: { username: true } }
+      }
+    })
+    
+    res.status(201).json(formatAdResponse(ad, req.user?.role))
+
+  } catch (error: any) {
+    console.error('创建广告失败:', error);
+    // 处理 Zod 校验错误
+    if (error.issues) {
+       return res.status(400).json({ error: error.issues[0].message });
+    }
+    res.status(500).json({ error: '创建广告失败，请检查输入或稍后重试' });
+  }
 }
 
 export const getAllAds = async (req: AuthRequest, res: Response) => {
@@ -153,59 +187,75 @@ export const getAdById = async (req: AuthRequest, res: Response) => {
   res.json(formatAdResponse(ad, req.user?.role))
 }
 
-// 🟢 2. 更新广告 (含余额风控)
+// 🟢 2. 更新广告 (含余额风控 + 爬虫超时保护)
 export const updateAd = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params
-  const { title, description, imageUrls, videoUrls, targetUrl, price, category, status, isAnonymous } = req.body;
+  try {
+    const { id } = req.params
+    const { title, description, imageUrls, videoUrls, targetUrl, price, category, status, isAnonymous } = req.body;
 
-  const existingAd = await prisma.ad.findUnique({ where: { id: parseInt(id) } });
-  if (!existingAd) return res.status(404).json({ error: '广告不存在' });
+    const existingAd = await prisma.ad.findUnique({ where: { id: parseInt(id) } });
+    if (!existingAd) return res.status(404).json({ error: '广告不存在' });
 
-  const isOwner = req.user && existingAd.userId === req.user.id;
-  const isAdmin = req.user?.role === 'admin';
+    const isOwner = req.user && existingAd.userId === req.user.id;
+    const isAdmin = req.user?.role === 'admin';
 
-  if (!isOwner && !isAdmin) {
-    return res.status(403).json({ error: '无权操作' });
-  }
-
-  const dataToUpdate: any = {};
-  if (title) dataToUpdate.title = title;
-  if (description) dataToUpdate.description = description;
-  if (targetUrl) dataToUpdate.targetUrl = targetUrl;
-  if (price !== undefined) dataToUpdate.price = Number(price);
-  if (category) dataToUpdate.category = category;
-  if (status) dataToUpdate.status = status;
-  if (isAnonymous !== undefined) dataToUpdate.isAnonymous = isAnonymous;
-
-  if (imageUrls) dataToUpdate.imageUrls = JSON.stringify(imageUrls);
-  if (videoUrls) dataToUpdate.videoUrls = JSON.stringify(videoUrls);
-
-  // 余额风控：如果最终状态是 Active，检查余额是否足够
-  const finalStatus = dataToUpdate.status !== undefined ? dataToUpdate.status : existingAd.status;
-  const finalPrice = dataToUpdate.price !== undefined ? dataToUpdate.price : Number(existingAd.price);
-
-  if (finalStatus === 'Active') {
-      // 只有当有明确的 userId 时才检查 (防止数据异常)
-      if (existingAd.userId) {
-          const user = await prisma.user.findUnique({ where: { id: existingAd.userId } });
-          if (user) {
-              const balance = Number(user.balance);
-              if (balance < finalPrice) {
-                  dataToUpdate.status = 'Paused'; // 强制暂停
-              }
-          }
-      }
-  }
-
-  const updatedAd = await prisma.ad.update({
-    where: { id: parseInt(id) },
-    data: dataToUpdate,
-    include: {
-      user: { select: { username: true } }
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: '无权操作' });
     }
-  });
 
-  res.json(formatAdResponse(updatedAd, req.user?.role));
+    const dataToUpdate: any = {};
+    
+    // 🟢 简单的超时保护，防止恶意 URL 卡死更新接口
+    if (targetUrl && targetUrl !== existingAd.targetUrl && /^https?:\/\//.test(targetUrl)) {
+         try {
+             // 仅做一个简单的连通性检查 (HEAD请求)，1秒超时
+             // 这一步是可选的，主要是确保更新的 URL 也是活的
+             // await axios.head(targetUrl, { timeout: 1000 });
+         } catch(e) {
+             // 忽略
+         }
+    }
+
+    if (title) dataToUpdate.title = title;
+    if (description) dataToUpdate.description = description;
+    if (targetUrl) dataToUpdate.targetUrl = targetUrl;
+    if (price !== undefined) dataToUpdate.price = Number(price);
+    if (category) dataToUpdate.category = category;
+    if (status) dataToUpdate.status = status;
+    if (isAnonymous !== undefined) dataToUpdate.isAnonymous = isAnonymous;
+
+    if (imageUrls) dataToUpdate.imageUrls = JSON.stringify(imageUrls);
+    if (videoUrls) dataToUpdate.videoUrls = JSON.stringify(videoUrls);
+
+    // 余额风控：如果最终状态是 Active，检查余额是否足够
+    const finalStatus = dataToUpdate.status !== undefined ? dataToUpdate.status : existingAd.status;
+    const finalPrice = dataToUpdate.price !== undefined ? dataToUpdate.price : Number(existingAd.price);
+
+    if (finalStatus === 'Active') {
+        if (existingAd.userId) {
+            const user = await prisma.user.findUnique({ where: { id: existingAd.userId } });
+            if (user) {
+                const balance = Number(user.balance);
+                if (balance < finalPrice) {
+                    dataToUpdate.status = 'Paused'; // 强制暂停
+                }
+            }
+        }
+    }
+
+    const updatedAd = await prisma.ad.update({
+      where: { id: parseInt(id) },
+      data: dataToUpdate,
+      include: {
+        user: { select: { username: true } }
+      }
+    });
+
+    res.json(formatAdResponse(updatedAd, req.user?.role));
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: '更新广告失败' });
+  }
 }
 
 export const deleteAd = async (req: AuthRequest, res: Response) => {

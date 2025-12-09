@@ -71,6 +71,7 @@ export interface FormField {
   multiple?: boolean;
   // 支持禁用状态
   disabled?: boolean; 
+  rules?: any[];
 }
 
 export interface FormSchema {

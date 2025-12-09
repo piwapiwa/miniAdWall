@@ -162,6 +162,28 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
       disabled: field.disabled,
     };
 
+    const processRules = (rules?: any[]) => {
+      if (!rules) return undefined;
+      return rules.map(rule => {
+        // 如果后端传来了 pattern 字符串
+        if (rule.pattern && typeof rule.pattern === 'string') {
+          return { 
+            ...rule, 
+            match: new RegExp(rule.pattern) // 还原为正则对象
+          };
+        }
+        return rule;
+      });
+    };
+
+    const fieldRules = processRules(field.rules) || [
+      { 
+        required: field.required, 
+        message: `请输入${field.label}`, 
+        type: field.type === 'number' ? 'number' : 'string'
+      }
+    ];
+
     if (field.type === 'file') {
       const isImage = field.name.toLowerCase().includes('image');
       const currentFileList = isImage ? imageFileList : videoFileList;
@@ -289,19 +311,19 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     switch (field.type) {
       case 'text':
         return (
-          <Form.Item key={field.name} {...commonProps} rules={defaultRules as any}>
+          <Form.Item key={field.name} {...commonProps} rules={fieldRules}>
             <Input placeholder={field.placeholder} maxLength={field.maxLength} disabled={field.disabled} />
           </Form.Item>
         );
       case 'number':
         return (
-          <Form.Item key={field.name} {...commonProps} rules={defaultRules as any}>
+          <Form.Item key={field.name} {...commonProps} rules={fieldRules}>
             <Input type="number" placeholder={field.placeholder} disabled={field.disabled} />
           </Form.Item>
         );
       case 'textarea':
         return (
-          <Form.Item key={field.name} {...commonProps} rules={defaultRules as any}>
+          <Form.Item key={field.name} {...commonProps} rules={fieldRules}>
             <Input.TextArea rows={4} placeholder={field.placeholder} maxLength={field.maxLength} disabled={field.disabled} />
           </Form.Item>
         );

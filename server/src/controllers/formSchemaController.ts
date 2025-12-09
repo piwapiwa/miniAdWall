@@ -15,7 +15,6 @@ const formSchemas: Record<string, any> = {
         placeholder: '请输入广告标题',
         maxLength: 100
       },
-      // 🚀 修改：设置为不可填，由前端自动填充
       {
         name: 'author',
         label: '发布人',
@@ -55,7 +54,15 @@ const formSchemas: Record<string, any> = {
         type: 'text',
         required: true,
         placeholder: '请输入广告点击后的落地页链接',
-        maxLength: 255
+        maxLength: 255,
+        // 🟢 [新增] 正则校验规则：前端会直接拦截错误的 URL
+        rules: [
+          { required: true, message: '落地页链接不能为空' },
+          { 
+            pattern: '^https?:\\/\\/.+', 
+            message: '请输入正确的网址 (需包含 http:// 或 https://)' 
+          }
+        ]
       },
       {
         name: 'price',
@@ -82,7 +89,6 @@ const formSchemas: Record<string, any> = {
     ]
   },
   
-  
   // 2. 编辑表单
   'update-ad-form': {
     id: 'update-ad-form',
@@ -96,7 +102,6 @@ const formSchemas: Record<string, any> = {
         placeholder: '请输入广告的名称',
         maxLength: 100
       },
-      // 编辑时也不可修改发布人
       {
         name: 'author',
         label: '发布人',
@@ -136,7 +141,12 @@ const formSchemas: Record<string, any> = {
         type: 'text',
         required: true,
         placeholder: '请输入广告点击后落地页的url地址',
-        maxLength: 255
+        maxLength: 255,
+        // 🟢 [新增] 正则校验规则
+        rules: [
+          { required: true, message: '落地页链接不能为空' },
+          { match: /^https?:\/\/.+/, message: '请输入正确的网址 (需包含 http:// 或 https://)' }
+        ]
       },
       {
         name: 'price',

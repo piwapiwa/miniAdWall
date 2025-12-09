@@ -222,6 +222,8 @@ const AdManager = () => {
       console.error(error)
       const errorMsg = error.response?.data?.error || '操作失败，请重试'
       Message.error(errorMsg)
+
+      throw error;
     }
   }
 
