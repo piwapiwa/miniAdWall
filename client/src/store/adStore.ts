@@ -83,7 +83,7 @@ export const useAdStore = create<AdState>((set, get) => ({
       const response = await axios.post('/api/ads', adData)
       const newAd = response.data
       set((state) => ({ ads: [newAd, ...state.ads], loading: false }))
-      get().fetchStats()
+      // get().fetchStats()
       return newAd
     } catch (error) {
       set({ loading: false })
@@ -101,7 +101,7 @@ export const useAdStore = create<AdState>((set, get) => ({
         selectedAd: state.selectedAd?.id === id ? updatedAd : state.selectedAd,
         loading: false
       }))
-      get().fetchStats()
+      // get().fetchStats()
       return updatedAd
     } catch (error) {
       set({ loading: false })

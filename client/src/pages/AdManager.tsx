@@ -32,6 +32,8 @@ const AdManager = () => {
   } = useAdStore()
   
   const { role, username } = useUserStore()
+
+  const getStatsParams = () => (role === 'admin' ? undefined : { mine: 'true' });
   
   const [formVisible, setFormVisible] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'copy' | 'edit'>('create')
@@ -56,24 +58,40 @@ const AdManager = () => {
   }, [])
 
   useEffect(() => {
-    // 🟢 修复 1：进入页面时，强制重置搜索条件
-    // 这样就不会把画廊页的搜索关键词带进来了
     setFilter({ search: '', status: 'All', category: 'All' })
+  }, []) 
 
-    // 稍微延迟一点点执行 fetch，确保 store 状态已更新（虽然 zustand 是同步的，但在 effect 中这样更稳妥）
+  // 🟢 修复 2: 监听筛选条件变化并请求数据
+  // 当 role, targetUser, 或者 filter 中的任何一个变化时，重新请求
+  useEffect(() => {
     const fetchData = async () => {
-        if (role === 'admin') {
-            await fetchAuthors()
-            // 显式传参覆盖 store 中的值，双重保险
-            await fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser, search: '' })
-            await fetchStats()
-        } else {
-            await fetchAds({ mine: 'true', search: '' })
-            await fetchStats({ mine: 'true' })
-        }
+      // 构造通用参数，确保 search 和 status 使用当前 store 中的 filter 值
+      const queryParams = {
+        search: filter.search || '', // 使用当前搜索框的值
+        status: filter.status || 'All', // 使用当前下拉框的值
+      };
+
+      if (role === 'admin') {
+        await fetchAuthors()
+        // 管理员：传入 targetUser (如果是 All 则 undefined)
+        await fetchAds({ 
+          ...queryParams,
+          targetUser: targetUser === 'All' ? undefined : targetUser 
+        })
+        await fetchStats()
+      } else {
+        // 普通用户：强制 mine=true
+        await fetchAds({ 
+          ...queryParams,
+          mine: 'true' 
+        })
+        await fetchStats({ mine: 'true' })
+      }
     }
+    
     fetchData()
-  }, [role, targetUser]) // 移除 fetchAds 等作为依赖，防止死循环
+    // ⚠️ 依赖项加入 filter.status 和 filter.search
+  }, [role, targetUser, filter.status, filter.search])
 
   const handleStatusToggle = async (ad: Ad, checked: boolean) => {
     try {
@@ -97,8 +115,7 @@ const AdManager = () => {
       } else {
         // 正常情况
         Message.success(checked ? '广告已上架' : '广告已暂停')
-        // 这里不需要全量刷新，本地乐观更新即可，提升体验
-        // 但为了保险（因为 updateAd 已经更新了 store），这里可以不做操作或者简单刷新
+        fetchStats(getStatsParams());
       }
       
     } catch (e) {
@@ -186,12 +203,14 @@ const AdManager = () => {
       setFormVisible(false)
       setIsAnonymous(false)
 
+      // 刷新列表和统计
       if (role === 'admin') {
         fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser })
       } else {
         fetchAds({ mine: 'true' })
       }
-      fetchStats({ mine: role === 'admin' ? undefined : 'true' })
+      
+      fetchStats(getStatsParams())
 
     } catch (error: any) {
       console.error(error)
@@ -210,7 +229,7 @@ const AdManager = () => {
           await deleteAd(id)
           Message.success('删除成功')
           
-          // 🟢 核心修复：根据当前角色，手动刷新对应的数据
+          // 根据当前角色，手动刷新对应的数据
           if (role === 'admin') {
             // 管理员：刷新列表（带筛选） + 刷新全站统计
             fetchAds({ targetUser: targetUser === 'All' ? undefined : targetUser })
@@ -218,11 +237,12 @@ const AdManager = () => {
           } else {
             // 普通用户：刷新列表（只看自己） + 刷新个人统计
             fetchAds({ mine: 'true' })
-            fetchStats({ mine: 'true' }) // ✨ 关键：带上 mine 参数
+            fetchStats({ mine: 'true' }) // 
           }
+
+          fetchStats(getStatsParams())
           
         } catch (e) {
-          // 错误处理已在 store 中抛出，这里虽然不用做太多，但加上 catch 更安全
           console.error(e)
         }
       }
@@ -306,7 +326,16 @@ const AdManager = () => {
               onChange={(val) => setFilter({ ...filter, search: val })} 
             />
             <div style={{ display: 'flex', gap: 10, width: '100%' }}>
-              <Select placeholder="状态筛选" style={{ width: isMobile ? '100%' : 140 }} onChange={(val) => setFilter({ ...filter, status: val })} allowClear>
+              <Select 
+              placeholder="状态筛选" 
+              style={{ width: isMobile ? '100%' : 140 }} 
+      
+              value={filter.status || 'All'} 
+              
+              onChange={(val) => setFilter({ ...filter, status: val || 'All' })} 
+              allowClear
+            >
+                <Select.Option value="All">💠  全部状态</Select.Option>
                 <Select.Option value="Active">🟢 投放中</Select.Option>
                 <Select.Option value="Paused">⚪ 已暂停</Select.Option>
               </Select>
