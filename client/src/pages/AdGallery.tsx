@@ -45,6 +45,11 @@ const AdGallery = () => {
   // 📱 移动端适配状态
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
+  // 跳转前保存当前筛选状态
+  const saveFilterState = () => {
+    sessionStorage.setItem('gallery_filter_backup', JSON.stringify(filter));
+  }
+
   // 视频播放相关状态
   const [videoModalVisible, setVideoModalVisible] = useState(false)
   const [playingVideoUrl, setPlayingVideoUrl] = useState<string>('')
@@ -53,9 +58,27 @@ const AdGallery = () => {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
-    // 🟢 核心修复：进入画廊页，强制重置筛选条件，且只获取 'Active' 状态的广告
-    setFilter({ search: '', status: 'Active', category: 'All' })
-    fetchAds({ search: '', status: 'Active', category: 'All' })
+    // 🟢 [修改] 优先尝试恢复之前的筛选状态
+    const savedFilter = sessionStorage.getItem('gallery_filter_backup');
+    
+    if (savedFilter) {
+      try {
+        const parsed = JSON.parse(savedFilter);
+        // 恢复状态并请求数据
+        setFilter(parsed);
+        fetchAds({ ...parsed, status: 'Active' });
+      } catch (e) {
+        // 解析失败则回退到默认
+        setFilter({ search: '', status: 'Active', category: 'All' });
+        fetchAds({ search: '', status: 'Active', category: 'All' });
+      }
+      // 用完即焚，避免影响下次正常进入
+      sessionStorage.removeItem('gallery_filter_backup');
+    } else {
+      // 默认初始化
+      setFilter({ search: '', status: 'Active', category: 'All' });
+      fetchAds({ search: '', status: 'Active', category: 'All' });
+    }
     
     const handleResize = () => setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', handleResize)
@@ -92,7 +115,6 @@ const AdGallery = () => {
   }
 
   const handleCardClick = async (ad: Ad) => {
-    // 1. 如果有视频，逻辑保持原样（弹窗播放，播放完再扣费）
     if (ad.videoUrls?.length) { 
       setPlayingVideoUrl(ad.videoUrls[Math.floor(Math.random() * ad.videoUrls.length)])
       setTargetRedirectUrl(ad.targetUrl)
@@ -101,27 +123,26 @@ const AdGallery = () => {
       return 
     }
 
-    // 2. 🟢 核心修复：针对普通图片/无媒体广告
-    // 必须等待 incrementClicks 完成，确保扣费成功才跳转
     try {
       await incrementClicks(ad.id);
-      // 扣费成功，进行跳转
+      
+      // 跳转前保存状态
+      saveFilterState();
+      
       window.location.href = ad.targetUrl; 
     } catch (error: any) {
-      // 🔴 3. 捕获余额不足错误
       if (error.response?.status === 402) {
         Modal.error({
           title: '访问失败',
           content: '该广告由于发布者余额不足，已暂停投放。',
           okText: '刷新列表',
           onOk: () => {
-            // 刷新列表，移除这个已暂停的广告
             fetchAds({ search: keyword, status: 'Active', category: filter.category })
           }
         });
       } else {
-        // 其他错误（如网络问题），还是允许跳转（为了不阻碍用户，或者选择提示错误）
-        // 这里选择允许跳转，避免影响用户体验，或者你可以选择 Message.error('记录点击失败');
+        //  即使出错跳转，也保存状态
+        saveFilterState();
         window.location.href = ad.targetUrl;
       }
     }
@@ -394,16 +415,27 @@ const AdGallery = () => {
               if(playingAdId) {
                 try {
                     await incrementClicks(playingAdId)
-                    window.location.href = targetRedirectUrl; // 成功才跳转
+                    
+                    // 1. 先关闭弹窗
+                    setVideoModalVisible(false);
+                    
+                    // 2. 保存筛选状态 
+                    saveFilterState();
+                    
+                    // 3. 最后跳转
+                    window.location.href = targetRedirectUrl; 
                 } catch(e: any) {
                     if(e.response?.status === 402) {
-                      setVideoModalVisible(false); // 关闭视频
+                      setVideoModalVisible(false);
                       Modal.error({
                           title: '访问失败',
                           content: '该广告已失效（发布者余额不足）。',
                           onOk: () => fetchAds({ search: keyword, status: 'Active', category: filter.category })
                       });
                     } else {
+                      // 即使出错跳转，也要关闭弹窗 + 保存状态
+                      setVideoModalVisible(false);
+                      saveFilterState();
                       window.location.href = targetRedirectUrl;
                     }
                 }
