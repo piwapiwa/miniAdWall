@@ -142,10 +142,13 @@ const formSchemas: Record<string, any> = {
         required: true,
         placeholder: '请输入广告点击后落地页的url地址',
         maxLength: 255,
-        // 🟢 [新增] 正则校验规则
-        rules: [
+        // 正则校验规则
+       rules: [
           { required: true, message: '落地页链接不能为空' },
-          { match: /^https?:\/\/.+/, message: '请输入正确的网址 (需包含 http:// 或 https://)' }
+          { 
+            pattern: '^https?:\\/\\/.+', 
+            message: '请输入正确的网址 (需包含 http:// 或 https://)' 
+          }
         ]
       },
       {
