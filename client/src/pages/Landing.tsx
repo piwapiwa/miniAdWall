@@ -133,7 +133,7 @@ const Landing = () => {
             <Button 
               size="large" shape="round" 
               style={{ height: 56, padding: '0 48px', fontSize: 18, background: '#fff', border: '1px solid #E5E6EB', color: '#4E5969', width: isMobile ? '100%' : 'auto' }}
-              onClick={() => window.open('https://github.com', '_blank')}
+              onClick={() => window.open('https://github.com/piwapiwa/miniAdWall', '_blank')}
             >
               了解更多
             </Button>
